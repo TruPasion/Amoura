@@ -4,10 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite --config client/vite.config.ts\" \"tsx server/index.ts\"",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview",
-    "dev:server": "tsx server/index.ts"
+    "dev:client": "vite --config client/vite.config.ts",
+    "dev:server": "tsx watch server/index.ts",
+    "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\""
   },
   "dependencies": {
     "express": "^5.1.0",

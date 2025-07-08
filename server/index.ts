@@ -6,12 +6,12 @@ const PORT = 3000;
 
 // API route (local logic)
 app.get('/api/hello', (req, res) => {
-  res.json({ message: 'Hello from server' });
+  res.json({ message: 'Hello from server check' });
 });
 
 // Handle 404 for API routes
 app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'API route not found' });
+  res.status(404).json({ error: 'API route not found checking hmr' });
 });
 
 // Proxy all frontend routes to Vite dev server

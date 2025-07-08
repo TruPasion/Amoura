@@ -1,13 +1,20 @@
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import authRoutes from './routes/auth';
 
 const app = express();
 const PORT = 3000;
+
+// Add this middleware to parse JSON bodies
+app.use(express.json());
 
 // API route (local logic)
 app.get('/api/hello', (req, res) => {
   res.json({ message: 'Hello from server check' });
 });
+
+// Mount your API routes
+app.use('/api/auth', authRoutes);
 
 // Handle 404 for API routes
 app.use('/api', (req, res) => {

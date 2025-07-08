@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+import GoogleloginButton from "../components/Auth/GoogleloginButton.vue";
+
 import Navbar from "../components/Navbar.vue";
 import Appfooter from "../components/Appfooter.vue";
 import { FwbButton } from "flowbite-vue";
@@ -44,19 +46,23 @@ onUnmounted(() => {
     :style="`padding-top: ${navbarHeight}px; height: calc(100vh); background-image: url('/bg3.jpg');`"
     class="bg-center bg-cover bg-no-repeat flex justify-center"
   >
-  <div class="px-4">
-    <div class="font-pacifico text-white text-center pt-7 text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
-      Boost your Relationship aura ++
+    <div class="px-4">
+      <div
+        class="font-pacifico text-white text-center pt-7 text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl"
+      >
+        Boost your Relationship aura ++
+      </div>
+      <div
+        class="font-pacifico text-white text-center mt-6 text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl"
+      >
+        with Amoura
+      </div>
+      <div class="text-white text-center mt-8">
+        <div class="w-64 flex justify-center mx-auto">
+          <GoogleloginButton />
+        </div>
+      </div>
     </div>
-    <div class="font-pacifico text-white text-center mt-6 text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
-      with Amoura
-    </div>
-    <div class="text-white text-center mt-8">
-      <fwb-button class="text-sm sm:text-base md:text-lg lg:text-xl px-6 py-1 sm:px-8 sm:py-3 lg:px-10 lg:py-4" size="xl" pill>
-        Sign In
-      </fwb-button>
-    </div>
-  </div>
   </div>
 
   <div>

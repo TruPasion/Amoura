@@ -9,14 +9,20 @@
     "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\""
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "flowbite": "^3.1.2",
     "flowbite-vue": "^0.2.1",
+    "google-auth-library": "^10.1.0",
     "http-proxy-middleware": "^3.0.5",
-    "vue": "^3.5.17"
+    "pinia": "^3.0.3",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
+    "@types/google.accounts": "^0.0.17",
     "@types/node": "^24.0.10",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",

@@ -4,21 +4,28 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --config client/vite.config.ts",
+    "dev": "concurrently \"vite --config client/vite.config.ts\" \"tsx server/index.ts\"",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:server": "tsx server/index.ts"
   },
   "dependencies": {
+    "express": "^5.1.0",
     "flowbite": "^3.1.2",
     "flowbite-vue": "^0.2.1",
+    "http-proxy-middleware": "^3.0.5",
     "vue": "^3.5.17"
   },
   "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.10",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.3",
     "typescript": "~5.8.3",
     "vite": "^7.0.0",
     "vue-tsc": "^2.2.10"

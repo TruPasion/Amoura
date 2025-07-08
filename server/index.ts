@@ -1,6 +1,10 @@
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import authRoutes from './routes/auth';
+import userRoutes from './routes/userRoutes';
+import dotenv from 'dotenv';
+dotenv.config();
+
 
 const app = express();
 const PORT = 3000;
@@ -15,6 +19,7 @@ app.get('/api/hello', (req, res) => {
 
 // Mount your API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes); // base path
 
 // Handle 404 for API routes
 app.use('/api', (req, res) => {

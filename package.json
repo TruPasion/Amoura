@@ -9,6 +9,7 @@
     "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\""
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
@@ -23,6 +24,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.3",
     "@types/google.accounts": "^0.0.17",
     "@types/jsonwebtoken": "^9.0.10",

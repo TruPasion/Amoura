@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import { verifyGoogleToken } from "../utils/googleAuth";
-import { generateAccessToken } from "../utils/jwt";
+import { generateAccessToken,verifyAccessToken } from "../utils/jwt";
 import { pool } from "../db";
+
 
 export async function googleAuthHandler(req: Request, res: Response) {
   const { token } = req.body;
@@ -43,12 +44,30 @@ export async function googleAuthHandler(req: Request, res: Response) {
 
     const jwtToken = generateAccessToken(user.rows[0].id);
 
-    res.json({
-      token: jwtToken,
-      user: user.rows[0],
+    res.cookie("auth_token", jwtToken, {
+      httpOnly: true,
+      secure: true, // Use this in production with HTTPS
+      maxAge: 3 * 60 * 60 * 1000, // 3 hours
     });
+    res.status(200).json({ user: user.rows[0] });
   } catch (err) {
     console.error("Google auth error:", err);
+    res.status(401).json({ error: "Invalid token" });
+  }
+}
+
+
+export async function verifyAuthHandler(req: Request, res: Response) {
+  const token = req.cookies.auth_token; // Extract the cookie
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  try {
+    const decoded = verifyAccessToken(token); // Validate the token
+    res.status(200).json({ userId: decoded.userId }); // Respond with user info
+  } catch (err) {
+    console.error("Token verification error:", err);
     res.status(401).json({ error: "Invalid token" });
   }
 }

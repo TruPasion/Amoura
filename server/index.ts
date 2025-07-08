@@ -2,6 +2,7 @@ import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
+import cookieParser from "cookie-parser";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -11,6 +12,7 @@ const PORT = 3000;
 
 // Add this middleware to parse JSON bodies
 app.use(express.json());
+app.use(cookieParser()); // Parse cookies
 
 // API route (local logic)
 app.get('/api/hello', (req, res) => {

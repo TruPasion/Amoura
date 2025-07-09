@@ -6,8 +6,12 @@
 
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { useUserStore } from "../../stores/user"; // Adjust the path as necessary
+const userStore = useUserStore();
 
-function handleCredentialResponse(response: google.accounts.id.CredentialResponse) {
+function handleCredentialResponse(
+  response: google.accounts.id.CredentialResponse
+) {
   console.log("📥 Google callback fired:", response);
 
   const token = response.credential;
@@ -30,12 +34,14 @@ function handleCredentialResponse(response: google.accounts.id.CredentialRespons
       }
       return res.json();
     })
-    .then(({ user, token }) => {
+    .then(({ user }) => {
       console.log("✅ User verified:", user);
-
-      // Store token and user locally
-      localStorage.setItem("auth_token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      // Store user data in the user store
+      userStore.setUser({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      });
 
       // Optional: redirect or update UI
       // router.push("/dashboard");

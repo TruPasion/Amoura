@@ -4,7 +4,7 @@ import GoogleloginButton from "../components/Auth/GoogleloginButton.vue";
 
 import Navbar from "../components/Navbar.vue";
 import Appfooter from "../components/Appfooter.vue";
-import { FwbButton } from "flowbite-vue";
+// import { FwbButton } from "flowbite-vue";
 const isNavbarVisible = ref(true);
 let lastScroll = window.scrollY;
 const navbarHeight = ref(0);

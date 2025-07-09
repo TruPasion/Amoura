@@ -42,6 +42,11 @@ export async function googleAuthHandler(req: Request, res: Response) {
       );
     }
 
+    const userProfile = await pool.query(
+      `SELECT * FROM user_profiles WHERE user_id = $1`,
+      [user.rows[0].id]
+    );
+
     const jwtToken = generateAccessToken(user.rows[0].id);
 
     res.cookie("auth_token", jwtToken, {
@@ -49,7 +54,10 @@ export async function googleAuthHandler(req: Request, res: Response) {
       secure: true, // Use this in production with HTTPS
       maxAge: 3 * 60 * 60 * 1000, // 3 hours
     });
-    res.status(200).json({ user: user.rows[0] });
+    res.status(200).json({
+      user: user.rows[0],
+      profile: userProfile.rows.length > 0 ? userProfile.rows[0] : null,
+    });
   } catch (err) {
     console.error("Google auth error:", err);
     res.status(401).json({ error: "Invalid token" });
@@ -71,3 +79,38 @@ export async function verifyAuthHandler(req: Request, res: Response) {
     res.status(401).json({ error: "Invalid token" });
   }
 }
+
+
+export async function getMeHandler(req: Request, res: Response) {
+  const token = req.cookies.auth_token; // Extract the cookie
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  try {
+    const decoded = verifyAccessToken(token); // Validate the token
+
+    const user = await pool.query(
+      `SELECT * FROM users WHERE id = $1`,
+      [decoded.userId]
+    );
+
+    if (user.rowCount === 0) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const userProfile = await pool.query(
+      `SELECT * FROM user_profiles WHERE user_id = $1`,
+      [user.rows[0].id]
+    );
+
+    res.status(200).json({
+      user: user.rows[0],
+      profile: userProfile.rows.length > 0 ? userProfile.rows[0] : null,
+    });
+  } catch (err) {
+    console.error("Token verification error:", err);
+    res.status(401).json({ error: "Invalid token" });
+  }
+}
+

@@ -7,6 +7,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useUserStore } from "../../stores/user"; // Adjust the path as necessary
+import router from "../../router";
 const userStore = useUserStore();
 
 function handleCredentialResponse(
@@ -41,10 +42,16 @@ function handleCredentialResponse(
         id: user.id,
         email: user.email,
         name: user.name,
+        profile: user.profile,
       });
 
       // Optional: redirect or update UI
-      // router.push("/dashboard");
+      if (user.profile) {
+        router.push("/app");
+      }
+      else {
+        router.push("/registration");
+      }
     })
     .catch((err) => {
       console.error("❌ Authentication failed:", err.message);

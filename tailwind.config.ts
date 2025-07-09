@@ -12,6 +12,8 @@ const config: Config = {
     extend: {
       fontFamily: {
         pacifico: ['\"Pacifico\"', "cursive"],
+        alegreya: ['\"Alegreya\"', "static"],
+
       },
     },
   },

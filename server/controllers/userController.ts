@@ -86,3 +86,42 @@ export const getUserById = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+// POST /user-profiles - create user profile
+export const createUserProfile = async (req: Request, res: Response) => {
+  try {
+    const {
+      user_id,
+      full_name,
+      date_of_birth,
+      gender,
+      profile_photo,
+      location_access,
+      latitude,
+      longitude,
+    } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO user_profiles (
+         user_id, full_name, date_of_birth, gender, profile_photo, location_access, latitude, longitude
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        user_id,
+        full_name,
+        date_of_birth,
+        gender,
+        profile_photo,
+        location_access,
+        latitude,
+        longitude,
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Create user profile error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+

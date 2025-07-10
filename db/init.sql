@@ -36,3 +36,17 @@ CREATE TABLE user_profiles (
 
   UNIQUE (user_id)                        -- 1-to-1 relation with users
 );
+
+CREATE EXTENSION postgis;
+
+CREATE TABLE user_locations (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  latitude DECIMAL(9,6),
+  longitude DECIMAL(9,6),
+  location GEOGRAPHY(Point, 4326),
+  location_access BOOLEAN DEFAULT FALSE,
+  updated_at TIMESTAMP DEFAULT now(),
+
+  UNIQUE (user_id)
+);

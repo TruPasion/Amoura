@@ -2,15 +2,17 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 
 interface UserProfile {
-  name: string;
-  dateOfBirth: string; // ISO format, e.g., "2003-02-10"
-  gender: "Male" | "Female" | "Other";
-  photo: Record<string, any>; // or `File | Blob | null` if it's a file upload
-  locationAccess: boolean;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
+  id: number;
+  user_id: number;
+  full_name: string;
+  date_of_birth: string; // ISO 8601 date string
+  gender: string;
+  latitude: number;
+  longitude: number;
+  location_access: boolean;
+  profile_photo?: string; // Optional, as it's not provided in the example
+  created_at: string; // ISO 8601 date string
+  updated_at: string; // ISO 8601 date string
 }
 
 interface User {

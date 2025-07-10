@@ -5,6 +5,8 @@ import Home from "../views/Home.vue";
 import Registration from "../components/Registration/Regview.vue";
 import { useUserStore } from "../stores/user";
 
+import { getDistanceInMeters } from "../utils/geo";
+
 const routes = [
   {
     path: "/",
@@ -48,13 +50,37 @@ router.beforeEach(async (to, _, next) => {
       const latitude = position.coords.latitude;
       const longitude = position.coords.longitude;
 
+      let location = {};
+
+      const locationStr = localStorage.getItem("location");
+      const stored = locationStr ? JSON.parse(locationStr) : {};
+
+      let hasMovedFar = true;
+
+      if (stored) {
+        const distance = getDistanceInMeters(
+          stored.latitude,
+          stored.longitude,
+          latitude,
+          longitude
+        );
+
+        hasMovedFar = distance > 50000; // 50 km
+      }
+
+      if (hasMovedFar) {
+        location = { latitude, longitude };
+      } else {
+        location = {}; // keep the old one
+      }
+
       const res = await fetch("/api/auth/me", {
         credentials: "include",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ latitude, longitude }),
+        body: JSON.stringify(location),
       });
 
       if (!res.ok) {
@@ -68,6 +94,11 @@ router.beforeEach(async (to, _, next) => {
         name: user.user.name,
         profile: user.profile,
       });
+
+      // Check and set location in local storage
+      if (user.location.latitude && user.location.longitude) {
+        localStorage.setItem("location", JSON.stringify(user.location));
+      }
 
       if (to.path.startsWith("/app")) {
         if (user.profile) {

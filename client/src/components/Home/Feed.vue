@@ -34,10 +34,10 @@
         <!-- Buttons -->
         <div class="flex gap-6">
           <button class="btn btn-success flex items-center gap-2">
-            <lucide-icon name="check" class="w-6 h-6" /> Accept
+            <Flame name="check" class="w-6 h-6" /> Accept
           </button>
           <button class="btn btn-danger flex items-center gap-2">
-            <lucide-icon name="x" class="w-6 h-6" /> Reject
+            <X name="x" class="w-6 h-6" /> Reject
           </button>
         </div>
 
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ListFilter } from "lucide-vue-next";
+import { ListFilter, Flame, X } from "lucide-vue-next";
 </script>
 
 <style scoped>

@@ -31,7 +31,32 @@ router.beforeEach(async (to, _, next) => {
 
   if (to.path.startsWith("/app") || to.path.startsWith("/registration")) {
     try {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
+      let position: GeolocationPosition;
+      try {
+        position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+      } catch (error: any) {
+        userStore.setMessage(
+          "Please allow location access to continue.",
+          "warning",
+          5000
+        );
+        return;
+      }
+
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+
+      const res = await fetch("/api/auth/me", {
+        credentials: "include",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ latitude, longitude }),
+      });
+
       if (!res.ok) {
         return next("/");
       }

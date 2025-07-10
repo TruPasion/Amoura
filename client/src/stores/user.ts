@@ -24,6 +24,25 @@ interface User {
 
 export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
+  const type = ref<"success" | "danger" | "warning">("success");
+  const message = ref<string>("");
+  const duration = ref<number>(0); // Default duration for toast messages
+
+  function setMessage(
+    msg: string,
+    msgType: "success" | "danger" | "warning",
+    msgDuration: number = 3000
+  ) {
+    message.value = msg;
+    type.value = msgType;
+    duration.value = msgDuration;
+  }
+
+  function resetMessage() {
+    message.value = "";
+    type.value = "success"; // Reset to default type
+    duration.value = 0; // Reset to default duration
+  }
 
   function setUser(u: User) {
     console.log("Setting user:", u);
@@ -36,7 +55,12 @@ export const useUserStore = defineStore("user", () => {
 
   return {
     user,
+    type,
+    message,
+    duration,
     setUser,
     logout,
+    setMessage,
+    resetMessage,
   };
 });

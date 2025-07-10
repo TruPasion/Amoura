@@ -12,7 +12,7 @@ router.get('/verify', authMiddleware, (req, res, next) => {
   Promise.resolve(verifyAuthHandler(req, res)).catch(next);
 });
 
-router.get('/me', authMiddleware, (req, res, next) => {
+router.post('/me', authMiddleware, (req, res, next) => {
   Promise.resolve(getMeHandler(req, res)).catch(next);
 });
 

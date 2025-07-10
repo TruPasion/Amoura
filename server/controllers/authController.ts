@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import { verifyGoogleToken } from "../utils/googleAuth";
-import { generateAccessToken,verifyAccessToken } from "../utils/jwt";
+import { generateAccessToken, verifyAccessToken } from "../utils/jwt";
 import { pool } from "../db";
-
 
 export async function googleAuthHandler(req: Request, res: Response) {
   const { token } = req.body;
@@ -64,7 +63,6 @@ export async function googleAuthHandler(req: Request, res: Response) {
   }
 }
 
-
 export async function verifyAuthHandler(req: Request, res: Response) {
   const token = req.cookies.auth_token; // Extract the cookie
   if (!token) {
@@ -80,7 +78,6 @@ export async function verifyAuthHandler(req: Request, res: Response) {
   }
 }
 
-
 export async function getMeHandler(req: Request, res: Response) {
   const token = req.cookies.auth_token; // Extract the cookie
   if (!token) {
@@ -90,10 +87,9 @@ export async function getMeHandler(req: Request, res: Response) {
   try {
     const decoded = verifyAccessToken(token); // Validate the token
 
-    const user = await pool.query(
-      `SELECT * FROM users WHERE id = $1`,
-      [decoded.userId]
-    );
+    const user = await pool.query(`SELECT * FROM users WHERE id = $1`, [
+      decoded.userId,
+    ]);
 
     if (user.rowCount === 0) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -104,13 +100,36 @@ export async function getMeHandler(req: Request, res: Response) {
       [user.rows[0].id]
     );
 
+    // update location if provided
+    // Extract location from body if sent
+    const { latitude, longitude } = req.body;
+
+    if (latitude && longitude) {
+      await pool.query(
+        `
+        INSERT INTO user_locations (user_id, latitude, longitude, location, updated_at)
+        VALUES ($1, $2::double precision, $3::double precision, ST_SetSRID(ST_MakePoint($3::double precision, $2::double precision), 4326), now())
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          latitude = EXCLUDED.latitude,
+          longitude = EXCLUDED.longitude,
+          location = EXCLUDED.location,
+          updated_at = now();
+        `,
+        [user.rows[0].id, latitude, longitude]
+      );
+    }
+
     res.status(200).json({
       user: user.rows[0],
       profile: userProfile.rows.length > 0 ? userProfile.rows[0] : null,
+      location: {
+        latitude: latitude || null,
+        longitude: longitude || null,
+      },
     });
   } catch (err) {
     console.error("Token verification error:", err);
     res.status(401).json({ error: "Invalid token" });
   }
 }
-

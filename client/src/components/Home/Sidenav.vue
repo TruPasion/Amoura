@@ -1,17 +1,17 @@
 <template>
   <div class="header m-1">
-    <fwb-card>
+    <div>
       <div class="flex gap-2 m-3">
         <div>
           <fwb-avatar bordered img="/avatar.avif" />
         </div>
         <div class="m-1.5">
-          <h1 class="text-lg font-semibold text-white">
+          <h1 class="text-lg font-semibold text-gray-700">
             {{ userStore.user?.profile?.full_name }}
           </h1>
         </div>
       </div>
-    </fwb-card>
+    </div>
   </div>
 
   <div class="font-serif w-full m-3">

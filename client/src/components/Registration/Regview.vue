@@ -217,11 +217,30 @@ async function handleContinue() {
         full_name: userData.value.name,
         date_of_birth: userData.value.dateOfBirth,
         gender: userData.value.gender,
-        profile_photo: '',
+        profile_photo: "",
         location_access: userData.value.locationAccess,
         latitude: userData.value.location.latitude,
         longitude: userData.value.location.longitude,
       };
+
+      const photoFormData = new FormData();
+      photoFormData.append("image", userData.value.photo!, userData.value.photo!.name);
+
+      const requestOptions = {
+        method: "POST",
+        body: photoFormData,
+        redirect: "manual" as RequestRedirect,
+      };
+
+      const photoResponse = await fetch("/api/upload", requestOptions);
+
+      if (!photoResponse.ok) {
+        throw new Error("Failed to upload photo");
+      }
+
+      const photoData = await photoResponse.json();
+      formData.profile_photo = photoData.fileUrl;
+
       const response = await fetch("/api/users/profiles", {
         method: "POST",
         headers: {

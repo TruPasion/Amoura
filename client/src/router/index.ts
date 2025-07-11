@@ -57,7 +57,7 @@ router.beforeEach(async (to, _, next) => {
 
       let hasMovedFar = true;
 
-      if (stored) {
+      if (stored.latitude && stored.longitude) {
         const distance = getDistanceInMeters(
           stored.latitude,
           stored.longitude,
@@ -66,6 +66,8 @@ router.beforeEach(async (to, _, next) => {
         );
 
         hasMovedFar = distance > 50000; // 50 km
+      } else {
+        hasMovedFar = true; // Default to true if stored location is invalid
       }
 
       if (hasMovedFar) {

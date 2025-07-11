@@ -9,6 +9,8 @@ export async function googleAuthHandler(req: Request, res: Response) {
 
   try {
     const googleUser = await verifyGoogleToken(token);
+
+    console.log("Google user:", googleUser);
     const {
       id: provider_user_id,
       email,
@@ -21,6 +23,8 @@ export async function googleAuthHandler(req: Request, res: Response) {
       `SELECT * FROM users WHERE provider = 'google' AND provider_user_id = $1`,
       [provider_user_id]
     );
+
+    console.log("Existing user:", existingUser.rows);
 
     let user;
     if ((existingUser.rowCount ?? 0) > 0) {

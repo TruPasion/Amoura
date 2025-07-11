@@ -3,7 +3,7 @@
     <div>
       <div class="flex gap-2 m-3">
         <div>
-          <fwb-avatar bordered img="/avatar.avif" />
+          <fwb-avatar bordered :img="userStore.user?.profile?.profile_photo" />
         </div>
         <div class="m-1.5">
           <h1 class="text-lg font-semibold text-gray-700">
@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { FwbAvatar, FwbCard } from "flowbite-vue";
+import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
 const userStore = useUserStore();
 </script>

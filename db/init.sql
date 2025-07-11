@@ -37,7 +37,6 @@ CREATE TABLE user_profiles (
   UNIQUE (user_id)                        -- 1-to-1 relation with users
 );
 
-CREATE EXTENSION postgis;
 
 CREATE TABLE user_locations (
   id SERIAL PRIMARY KEY,
@@ -50,3 +49,7 @@ CREATE TABLE user_locations (
 
   UNIQUE (user_id)
 );
+
+-- Add index (run only after your table is created)
+CREATE INDEX IF NOT EXISTS idx_user_locations_location
+  ON user_locations USING GIST (location);

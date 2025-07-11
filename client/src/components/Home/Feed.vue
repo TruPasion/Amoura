@@ -2,13 +2,17 @@
   <div class="feed-container flex flex-col h-screen p-4">
     <!-- Filters and Header -->
     <div class="flex items-center mb-4">
-      <div class="filters flex-none">
-        <ListFilter class="w-6 h-6 text-gray-600" />
+      <div class="filters flex-none relative">
+        <ListFilter class="w-6 h-6 text-gray-600 cursor-pointer" @click="toggleFilterBox" />
+        <FilterBox v-if="showFilterBox" @close="showFilterBox = false" @applyFilters="handleApplyFilters" />
       </div>
       <div class="flex-grow text-center">
         <h1 class="text-5xl font-pacifico text-purple-700">Amoura</h1>
       </div>
     </div>
+
+    <!-- Filter Box Component - Shown/Hidden based on state -->
+    <!-- <FilterBox v-if="showFilterBox" @close="showFilterBox = false" /> -->
 
     <!-- Card Section -->
     <div
@@ -53,6 +57,27 @@
 
 <script setup lang="ts">
 import { ListFilter, Flame, X } from "lucide-vue-next";
+import { onMounted, ref } from "vue";
+import FilterBox from "./FilterBox.vue";
+
+const isHovered = ref(false);
+const showFilterBox = ref(false);
+
+function toggleFilterBox() {
+  showFilterBox.value = !showFilterBox.value;
+}
+
+// get the feeds with nearby users
+onMounted(() => {
+  // Any initialization logic can go here
+  isHovered.value = false; // Initialize hover state
+  console.log("Feed component mounted");
+});
+
+function handleApplyFilters(filters: { range: number; gender: string; ageRange: { min: number; max: number } }) {
+  // Handle the apply filters logic here
+  console.log("Filters applied:", filters);
+}
 </script>
 
 <style scoped>

@@ -6,6 +6,7 @@ import type { User, NearbyUserProfile } from "../utils/types";
 export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
   const nearbyUsers = ref<NearbyUserProfile[]>([]);
+  const lastSeenProfile = ref<NearbyUserProfile | null>(null);
   const type = ref<"success" | "danger" | "warning">("success");
   const message = ref<string>("");
   const duration = ref<number>(0); // Default duration for toast messages
@@ -54,6 +55,27 @@ export const useUserStore = defineStore("user", () => {
     user.value = null;
   }
 
+  //get profile 
+  function userProfileAction() {
+    if(nearbyUsers.value.length > 0) {
+      // call api call and do action based on the argument like or dislike 
+      lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
+    }
+  }
+
+  function undoUserAction() {
+    if (lastSeenProfile.value) {
+      // Re-add the last seen profile back to the nearby users list
+      nearbyUsers.value.push(lastSeenProfile.value);
+      lastSeenProfile.value = null; // Clear the last seen profile
+    }
+    else {
+      console.warn("No last seen profile to undo action for.");
+      // diable button in future
+    }
+  }
+
+
   return {
     user,
     range,
@@ -69,5 +91,7 @@ export const useUserStore = defineStore("user", () => {
     setMessage,
     resetMessage,
     getnearbyusers,
+    userProfileAction,
+    undoUserAction,
   };
 });

@@ -22,7 +22,7 @@
             <!-- Left Half: Image -->
       <div class="w-3/5 flex items-center justify-center">
         <img
-          src="/avatar.avif"
+          :src="lastUser?.profile_photo"
           alt="User Image"
           class="max-w-full max-h-full object-contain"
         />
@@ -31,18 +31,18 @@
       <!-- Right Half: User Details -->
       <div class="w-2/5 p-6 flex flex-col justify-between">
         <div>
-          <h2 class="text-3xl font-semibold">Bhargav</h2>
-          <p class="text-lg text-gray-600">Male, 25</p>
+          <h2 class="text-3xl font-semibold">{{ lastUser?.full_name }}</h2>
+          <p class="text-lg text-gray-600">{{ lastUser?.gender }}</p>
           <p class="text-lg text-gray-600">Location: Hyderabad</p>
         </div>
 
         <!-- Buttons -->
         <div class="flex gap-6">
           <button class="btn btn-success flex items-center gap-2">
-            <Flame name="check" class="w-6 h-6" /> Accept
+            <Flame name="check" class="w-6 h-6" /> Send Aura
           </button>
           <button class="btn btn-danger flex items-center gap-2">
-            <X name="x" class="w-6 h-6" /> Reject
+            <X name="x" class="w-6 h-6" /> Skip
           </button>
         </div>
 
@@ -64,13 +64,19 @@
 
 <script setup lang="ts">
 import { ListFilter, Flame, X } from "lucide-vue-next";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import FilterBox from "./FilterBox.vue";
 
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";
 const userStore = useUserStore();
 const {nearbyUsers} = storeToRefs(userStore);
+
+const lastUser = computed(() => {
+  return nearbyUsers.value.length > 0 ? nearbyUsers.value[nearbyUsers.value.length - 1] : null;
+});
+
+console.log("Last User:", lastUser.value);
 
 const showFilterBox = ref(false);
 

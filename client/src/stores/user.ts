@@ -1,32 +1,30 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-
-interface UserProfile {
-  id: number;
-  user_id: number;
-  full_name: string;
-  date_of_birth: string; // ISO 8601 date string
-  gender: string;
-  latitude: number;
-  longitude: number;
-  location_access: boolean;
-  profile_photo?: string; // Optional, as it's not provided in the example
-  created_at: string; // ISO 8601 date string
-  updated_at: string; // ISO 8601 date string
-}
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  profile: UserProfile | null;
-}
+import { ref, computed } from "vue";
+import { getnearbyhelper } from "../apihelper/geohelper";
+import type { User } from "../utils/types";
 
 export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
   const type = ref<"success" | "danger" | "warning">("success");
   const message = ref<string>("");
   const duration = ref<number>(0); // Default duration for toast messages
+  const range = ref(50);
+  const gender = ref("");
+  const ageRange = ref({ min: 18, max: 100 });
+
+  const getnearbyuserPayload = computed(() => ({
+    latitude: user.value?.profile?.latitude || 0,
+    longitude: user.value?.profile?.longitude || 0,
+    range: range.value * 1000, // Convert km to meters
+    gender: gender.value,
+    minAge: ageRange.value.min,
+    maxAge: ageRange.value.max,
+    currentUserId: user.value?.id || 0,
+  }));
+
+  async function getnearbyusers() {
+      return await getnearbyhelper(getnearbyuserPayload.value)
+    }
 
   function setMessage(
     msg: string,
@@ -55,6 +53,10 @@ export const useUserStore = defineStore("user", () => {
 
   return {
     user,
+    range,
+    ageRange,
+    gender,
+    getnearbyuserPayload,
     type,
     message,
     duration,
@@ -62,5 +64,6 @@ export const useUserStore = defineStore("user", () => {
     logout,
     setMessage,
     resetMessage,
+    getnearbyusers,
   };
 });

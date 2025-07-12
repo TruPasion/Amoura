@@ -60,7 +60,6 @@ import { ListFilter, Flame, X } from "lucide-vue-next";
 import { onMounted, ref } from "vue";
 import FilterBox from "./FilterBox.vue";
 
-const isHovered = ref(false);
 const showFilterBox = ref(false);
 
 function toggleFilterBox() {
@@ -69,8 +68,8 @@ function toggleFilterBox() {
 
 // get the feeds with nearby users
 onMounted(() => {
-  // Any initialization logic can go here
-  isHovered.value = false; // Initialize hover state
+  // get the  nearby users from the server
+  
   console.log("Feed component mounted");
 });
 

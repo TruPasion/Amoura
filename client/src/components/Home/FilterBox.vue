@@ -73,16 +73,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits } from "vue";
+import { defineEmits } from "vue";
 
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";
 const userStore = useUserStore();
-const { user } = storeToRefs(userStore);
-
-const range = ref(50);
-const gender = ref("");
-const ageRange = ref({ min: 18, max: 100 });
+const { range, gender, ageRange } = storeToRefs(userStore);
 
 const emit = defineEmits(["close", "applyFilters"]);
 
@@ -91,34 +87,8 @@ function cancel() {
 }
 
 async function apply() {
-  const payload = {
-    latitude: user.value?.profile?.latitude || 0,
-    longitude: user.value?.profile?.longitude || 0,
-    range: range.value * 1000, // Convert km to meters
-    gender: gender.value,
-    minAge: ageRange.value.min,
-    maxAge: ageRange.value.max,
-    currentUserId: user.value?.id || 0,
-  };
-
-  try {
-    const response = await fetch("/api/gis/getnearbyusers", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch nearby users");
-    }
-
-    const nearbyUsers = await response.json();
-    console.log("Nearby users:", nearbyUsers);
-  } catch (error) {
-    console.error("Error fetching nearby users:", error);
-  }
+  const nearbyUsers = await userStore.getnearbyusers();
+  console.log("Nearby Users:", nearbyUsers);
 
   emit("applyFilters", {
     range: range.value,

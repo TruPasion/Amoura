@@ -37,6 +37,10 @@ CREATE TABLE user_profiles (
   UNIQUE (user_id)                        -- 1-to-1 relation with users
 );
 
+CREATE INDEX idx_user_profiles_gender ON user_profiles (gender);
+
+CREATE INDEX idx_user_profiles_dob ON user_profiles (date_of_birth);
+
 
 CREATE TABLE user_locations (
   id SERIAL PRIMARY KEY,
@@ -53,3 +57,27 @@ CREATE TABLE user_locations (
 -- Add index (run only after your table is created)
 CREATE INDEX IF NOT EXISTS idx_user_locations_location
   ON user_locations USING GIST (location);
+
+
+-- SEEN USERS TABLE
+CREATE TABLE user_seen_profiles (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seen_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seen_at TIMESTAMP DEFAULT now(),
+  PRIMARY KEY (user_id, seen_user_id)
+);
+
+-- INDEX FOR FASTER SEEN USER LOOKUP
+CREATE INDEX IF NOT EXISTS idx_seen_user ON user_seen_profiles (user_id);
+
+-- MATCHED USERS TABLE
+CREATE TABLE user_matches (
+  user_id_1 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id_2 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  matched_at TIMESTAMP DEFAULT now(),
+  CHECK (user_id_1 < user_id_2),
+  PRIMARY KEY (user_id_1, user_id_2)
+);
+
+-- INDEX TO SUPPORT REVERSE LOOKUPS (optional)
+CREATE INDEX IF NOT EXISTS idx_user_matches_reverse ON user_matches (user_id_2);

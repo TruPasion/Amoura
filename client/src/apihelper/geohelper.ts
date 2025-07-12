@@ -19,5 +19,5 @@ export async function getnearbyhelper(payload: any) {
     console.error("Error fetching nearby users:", error);
   }
 
-  return nearbyUsers;
+  return nearbyUsers.users || [];
 }

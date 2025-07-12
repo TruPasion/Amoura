@@ -48,6 +48,7 @@ export const getNearbyUsers = async (req: Request, res: Response) => {
       FROM user_locations l
       JOIN user_profiles p ON l.user_id = p.user_id
       WHERE ${conditions.join(" AND ")}
+      LIMIT 50
     `;
 
     const result = await pool.query(query, params);

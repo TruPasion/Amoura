@@ -18,7 +18,8 @@
     <div
       class="feb-card flex border rounded-lg shadow-md overflow-hidden flex-grow w-full"
     >
-      <!-- Left Half: Image -->
+    <template v-if="nearbyUsers.length > 0">
+            <!-- Left Half: Image -->
       <div class="w-3/5 flex items-center justify-center">
         <img
           src="/avatar.avif"
@@ -51,6 +52,12 @@
           <button class="hover:text-red-500">Block</button>
         </div>
       </div>
+    </template>
+    <template v-else>
+      <div class="flex items-center justify-center w-full h-full font-Pacifico">
+        <p class="text-gray-500">No nearby users found.</p>
+      </div>
+    </template>
     </div>
   </div>
 </template>
@@ -60,6 +67,11 @@ import { ListFilter, Flame, X } from "lucide-vue-next";
 import { onMounted, ref } from "vue";
 import FilterBox from "./FilterBox.vue";
 
+import { useUserStore } from "../../stores/user";
+import { storeToRefs } from "pinia";
+const userStore = useUserStore();
+const {nearbyUsers} = storeToRefs(userStore);
+
 const showFilterBox = ref(false);
 
 function toggleFilterBox() {
@@ -67,9 +79,8 @@ function toggleFilterBox() {
 }
 
 // get the feeds with nearby users
-onMounted(() => {
-  // get the  nearby users from the server
-  
+onMounted(async() => {
+  await userStore.getnearbyusers();
   console.log("Feed component mounted");
 });
 

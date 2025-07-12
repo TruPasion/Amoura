@@ -1,16 +1,17 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { getnearbyhelper } from "../apihelper/geohelper";
-import type { User } from "../utils/types";
+import type { User, NearbyUserProfile } from "../utils/types";
 
 export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
+  const nearbyUsers = ref<NearbyUserProfile[]>([]);
   const type = ref<"success" | "danger" | "warning">("success");
   const message = ref<string>("");
   const duration = ref<number>(0); // Default duration for toast messages
   const range = ref(50);
   const gender = ref("");
-  const ageRange = ref({ min: 18, max: 100 });
+  const ageRange = ref({ min: 18, max: 40 });
 
   const getnearbyuserPayload = computed(() => ({
     latitude: user.value?.profile?.latitude || 0,
@@ -23,7 +24,9 @@ export const useUserStore = defineStore("user", () => {
   }));
 
   async function getnearbyusers() {
-      return await getnearbyhelper(getnearbyuserPayload.value)
+      const nearbyusersresponse: NearbyUserProfile[] =  await getnearbyhelper(getnearbyuserPayload.value);
+      nearbyUsers.value = nearbyusersresponse || [];
+      return nearbyUsers.value;
     }
 
   function setMessage(
@@ -60,6 +63,7 @@ export const useUserStore = defineStore("user", () => {
     type,
     message,
     duration,
+    nearbyUsers,
     setUser,
     logout,
     setMessage,

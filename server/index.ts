@@ -3,6 +3,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import authRoutes from "./routes/auth";
 import georoutes from "./routes/georoutes";
 import userRoutes from "./routes/userRoutes";
+import feedRoutes from "./routes/feedRoutes";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { authMiddleware } from "./middlewares/authMiddleware";
@@ -48,7 +49,9 @@ app.get("/api/hello", (req, res) => {
 // Mount your API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/gis", authMiddleware, georoutes);
-app.use("/api/users", authMiddleware, userRoutes); // base path
+app.use("/api/users", authMiddleware, userRoutes); 
+app.use("/api/actions", authMiddleware, feedRoutes); 
+// Serve static files from the uploads directory
 
 // Upload endpoint
 import type { Request, Response } from "express";

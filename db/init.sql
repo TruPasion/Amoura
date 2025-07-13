@@ -59,18 +59,20 @@ CREATE INDEX IF NOT EXISTS idx_user_locations_location
   ON user_locations USING GIST (location);
 
 
--- SEEN USERS TABLE
+-- ✅ SEEN USERS TABLE (Optimized)
 CREATE TABLE user_seen_profiles (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   seen_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action VARCHAR(10) NOT NULL DEFAULT 'like' CHECK (action IN ('like', 'dislike')),
   seen_at TIMESTAMP DEFAULT now(),
   PRIMARY KEY (user_id, seen_user_id)
 );
 
--- INDEX FOR FASTER SEEN USER LOOKUP
+-- ✅ INDEXES FOR BIDIRECTIONAL LOOKUP (Mutual Likes)
 CREATE INDEX IF NOT EXISTS idx_seen_user ON user_seen_profiles (user_id);
+CREATE INDEX IF NOT EXISTS idx_seen_lookup_reverse ON user_seen_profiles (seen_user_id, user_id);
 
--- MATCHED USERS TABLE
+-- ✅ MATCHED USERS TABLE (Safe Against Race Conditions)
 CREATE TABLE user_matches (
   user_id_1 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_id_2 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -79,5 +81,6 @@ CREATE TABLE user_matches (
   PRIMARY KEY (user_id_1, user_id_2)
 );
 
--- INDEX TO SUPPORT REVERSE LOOKUPS (optional)
+-- ✅ INDEX FOR REVERSE MATCH LOOKUP
 CREATE INDEX IF NOT EXISTS idx_user_matches_reverse ON user_matches (user_id_2);
+

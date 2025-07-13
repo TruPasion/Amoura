@@ -2,7 +2,7 @@ export interface UserProfile {
   id: number;
   user_id: number;
   full_name: string;
-  date_of_birth: string; // ISO 8601 date string
+  age: string; // ISO 8601 date string
   gender: string;
   latitude: number;
   longitude: number;
@@ -22,7 +22,7 @@ export interface User {
 export interface NearbyUserProfile {
   user_id: number;
   full_name: string;
-  date_of_birth: string; // ISO 8601 date string
+  age: string; // ISO 8601 date string
   gender: string;
   latitude: string;
   longitude: string;

@@ -25,10 +25,12 @@ export const useUserStore = defineStore("user", () => {
   }));
 
   async function getnearbyusers() {
-      const nearbyusersresponse: NearbyUserProfile[] =  await getnearbyhelper(getnearbyuserPayload.value);
-      nearbyUsers.value = nearbyusersresponse || [];
-      return nearbyUsers.value;
-    }
+    const nearbyusersresponse: NearbyUserProfile[] = await getnearbyhelper(
+      getnearbyuserPayload.value
+    );
+    nearbyUsers.value = nearbyusersresponse || [];
+    return nearbyUsers.value;
+  }
 
   function setMessage(
     msg: string,
@@ -55,26 +57,57 @@ export const useUserStore = defineStore("user", () => {
     user.value = null;
   }
 
-  //get profile 
-  function userProfileAction() {
-    if(nearbyUsers.value.length > 0) {
-      // call api call and do action based on the argument like or dislike 
+  //get profile
+  async function userProfileAction(action: boolean) {
+    if (nearbyUsers.value.length > 0) {
+      const currentProfile = nearbyUsers.value[nearbyUsers.value.length - 1];
+      try {
+        const payload = {
+          user_id: user.value?.id,
+          seen_user_id: currentProfile.user_id, // Fixed property name
+          action: action ? "like" : "dislike",
+        };
+        await fetch("/api/actions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log(`${action ? "Liked" : "Disliked"} profile:`, currentProfile);
+      } catch (error) {
+        console.error("Error performing user action:", error);
+      }
       lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
     }
   }
 
-  function undoUserAction() {
+  async function undoUserAction() {
     if (lastSeenProfile.value) {
-      // Re-add the last seen profile back to the nearby users list
-      nearbyUsers.value.push(lastSeenProfile.value);
-      lastSeenProfile.value = null; // Clear the last seen profile
-    }
-    else {
+      try {
+        const payload = {
+          user_id: user.value?.id,
+          seen_user_id: lastSeenProfile.value.user_id, // Fixed property name
+          action: "rewind",
+        };
+        await fetch("/api/actions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        nearbyUsers.value.push(lastSeenProfile.value);
+        lastSeenProfile.value = null; // Clear the last seen profile
+        console.log("Rewind action completed successfully");
+      } catch (error) {
+        console.error("Error performing rewind action:", error);
+      }
+    } else {
       console.warn("No last seen profile to undo action for.");
-      // diable button in future
+      // Disable button in future
     }
   }
-
 
   return {
     user,
@@ -86,6 +119,7 @@ export const useUserStore = defineStore("user", () => {
     message,
     duration,
     nearbyUsers,
+    lastSeenProfile,
     setUser,
     logout,
     setMessage,

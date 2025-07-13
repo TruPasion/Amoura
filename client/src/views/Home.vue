@@ -2,8 +2,8 @@
   <div class="h-screen w-full flex relative">
     <!-- Sidebar -->
     <div
-      :class="[
-        'bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-20',
+      :class=" [
+        'bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-20 rounded-lg shadow-lg',
         isHovered ? 'fixed top-0 left-0 h-full w-64' : 'relative w-16',
         'lg:relative lg:w-64 lg:z-auto',
       ]"
@@ -14,7 +14,7 @@
     </div>
 
     <!-- Right pane -->
-    <div class="flex-1 h-full bg-gray-50 overflow-auto" style="height: 100vh">
+    <div class="flex-1 h-full bg-gray-50 overflow-auto rounded-lg shadow-lg" style="height: 100vh">
       <Feed />
     </div>
   </div>

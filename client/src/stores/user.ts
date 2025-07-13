@@ -13,6 +13,7 @@ export const useUserStore = defineStore("user", () => {
   const range = ref(50);
   const gender = ref("");
   const ageRange = ref({ min: 18, max: 40 });
+  const isRewind = ref(false);
 
   const getnearbyuserPayload = computed(() => ({
     latitude: user.value?.profile?.latitude || 0,
@@ -74,11 +75,19 @@ export const useUserStore = defineStore("user", () => {
           },
           body: JSON.stringify(payload),
         });
-        console.log(`${action ? "Liked" : "Disliked"} profile:`, currentProfile);
+        console.log(
+          `${action ? "Liked" : "Disliked"} profile:`,
+          currentProfile
+        );
       } catch (error) {
         console.error("Error performing user action:", error);
       }
-      lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
+      if (isRewind.value) {
+        isRewind.value = false; // Reset rewind state after action
+        nearbyUsers.value.pop()
+      } else {
+        lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
+      }
       if (nearbyUsers.value.length === 0) {
         await getnearbyusers(); // Fetch more users if available
       }
@@ -88,6 +97,7 @@ export const useUserStore = defineStore("user", () => {
   async function undoUserAction() {
     if (lastSeenProfile.value) {
       try {
+        isRewind.value = true;
         const payload = {
           user_id: user.value?.id,
           seen_user_id: lastSeenProfile.value.user_id, // Fixed property name

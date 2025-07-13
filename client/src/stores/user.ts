@@ -79,6 +79,9 @@ export const useUserStore = defineStore("user", () => {
         console.error("Error performing user action:", error);
       }
       lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
+      if (nearbyUsers.value.length === 0) {
+        await getnearbyusers(); // Fetch more users if available
+      }
     }
   }
 

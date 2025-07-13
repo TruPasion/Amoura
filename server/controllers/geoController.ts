@@ -39,21 +39,25 @@ export const getNearbyUsers = async (req: Request, res: Response) => {
     }
 
     const query = `
-      SELECT 
-        p.user_id,
-        p.full_name,
-        p.gender,
-        p.profile_photo,
-        p.created_at,
-        l.latitude,
-        l.longitude,
-        ST_Distance(l.location, ST_SetSRID(ST_MakePoint($2, $3), 4326)) AS distance,
-        DATE_PART('year', AGE(p.date_of_birth)) AS age
-      FROM user_locations l
-      JOIN user_profiles p ON l.user_id = p.user_id
-      WHERE ${conditions.join(" AND ")}
-      LIMIT 50
-    `;
+  SELECT 
+    p.user_id,
+    p.full_name,
+    p.gender,
+    p.profile_photo,
+    p.created_at,
+    l.latitude,
+    l.longitude,
+    ST_Distance(l.location, ST_SetSRID(ST_MakePoint($2, $3), 4326)) AS distance,
+    DATE_PART('year', AGE(p.date_of_birth)) AS age
+  FROM user_locations l
+  JOIN user_profiles p ON l.user_id = p.user_id
+  WHERE ${conditions.join(" AND ")}
+    AND NOT EXISTS (
+      SELECT 1 FROM user_seen_profiles s 
+      WHERE s.user_id = $1 AND s.seen_user_id = p.user_id
+    )
+  LIMIT 10
+`;
 
     const result = await pool.query(query, params);
     const users = result.rows;

@@ -10,7 +10,6 @@
         <FilterBox
           v-if="showFilterBox"
           @close="showFilterBox = false"
-          @applyFilters="handleApplyFilters"
         />
       </div>
       <div class="flex-grow text-center">
@@ -68,7 +67,7 @@
               <X name="x" class="w-6 h-6" /> Skip
             </button>
             <button
-            v-if="lastSeenProfile"
+              v-if="lastSeenProfile"
               @click="userAction('rewind')"
               class="btn btn-primary flex items-center gap-2"
             >
@@ -112,7 +111,7 @@ const lastUser = computed(() => {
     : null;
 });
 
-console.log("Last User:", lastUser.value);
+//console.log("Last User:", lastUser.value);
 
 const showFilterBox = ref(false);
 
@@ -139,17 +138,8 @@ function toggleFilterBox() {
 // get the feeds with nearby users
 onMounted(async () => {
   await getnearbyusers();
-  console.log("Feed component mounted");
+  //console.log("Feed component mounted");
 });
-
-function handleApplyFilters(filters: {
-  range: number;
-  gender: string;
-  ageRange: { min: number; max: number };
-}) {
-  // Handle the apply filters logic here
-  console.log("Filters applied:", filters);
-}
 </script>
 
 <style scoped>

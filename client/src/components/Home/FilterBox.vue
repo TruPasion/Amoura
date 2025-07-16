@@ -80,7 +80,7 @@ import { storeToRefs } from "pinia";
 const userStore = useUserStore();
 const { range, gender, ageRange } = storeToRefs(userStore);
 
-const emit = defineEmits(["close", "applyFilters"]);
+const emit = defineEmits(["close"]);
 
 function cancel() {
   emit("close");
@@ -89,13 +89,6 @@ function cancel() {
 async function apply() {
   const nearbyUsers = await userStore.getnearbyusers();
   console.log("Nearby Users:", nearbyUsers);
-
-  emit("applyFilters", {
-    range: range.value,
-    gender: gender.value,
-    ageRange: ageRange.value,
-  });
-  cancel();
 }
 </script>
 

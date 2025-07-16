@@ -15,6 +15,25 @@ export const useUserStore = defineStore("user", () => {
   const ageRange = ref({ min: 18, max: 40 });
   const isRewind = ref(false);
 
+  function addToAccumulatedPayload(newItem: {
+    user_id: number | undefined;
+    seen_user_id: number | undefined;
+    action: string;
+  }) {
+    const isDuplicate = accumulatedPayload.value.some(
+      (item) =>
+        item.user_id === newItem.user_id &&
+        item.seen_user_id === newItem.seen_user_id &&
+        item.action === newItem.action
+    );
+
+    if (!isDuplicate) {
+      accumulatedPayload.value.push(newItem);
+    } else {
+      console.log("Skipping duplicate payload:", newItem);
+    }
+  }
+
   const getnearbyuserPayload = computed(() => ({
     latitude: user.value?.profile?.latitude || 0,
     longitude: user.value?.profile?.longitude || 0,
@@ -59,18 +78,14 @@ export const useUserStore = defineStore("user", () => {
   }
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let accumulatedPayload: {
-    user_id: number | undefined;
-    seen_user_id: number;
-    action: string;
-  }[] = [];
+  const accumulatedPayload = ref<any[]>([]);
 
   async function userProfileAction(action: boolean) {
     if (nearbyUsers.value.length > 0) {
       const currentProfile = nearbyUsers.value[nearbyUsers.value.length - 1];
 
       // Accumulate payload
-      accumulatedPayload.push({
+      addToAccumulatedPayload({
         user_id: user.value?.id,
         seen_user_id: currentProfile.user_id,
         action: action ? "like" : "dislike",
@@ -84,19 +99,15 @@ export const useUserStore = defineStore("user", () => {
         lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
       }
 
-      if (nearbyUsers.value.length === 0) {
-        await getnearbyusers();
-      }
-
       // Reset debounce timer on each call
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
 
       debounceTimer = setTimeout(async () => {
-        if (accumulatedPayload.length > 0) {
-          const payloadToSend = [...accumulatedPayload];
-          accumulatedPayload = []; // Clear for next batch
+        if (accumulatedPayload.value.length > 0) {
+          const payloadToSend = [...accumulatedPayload.value];
+          accumulatedPayload.value = []; // Clear for next batch
 
           try {
             await fetch("/api/actions", {
@@ -104,13 +115,39 @@ export const useUserStore = defineStore("user", () => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payloadToSend),
             });
-            console.log("Batched actions sent:", payloadToSend);
+
+            if (nearbyUsers.value.length === 0) {
+              getnearbyusers();
+            }
           } catch (error) {
             console.error("Error performing batched user actions:", error);
-            accumulatedPayload.unshift(...payloadToSend); // Re-add if failed (optional)
+            accumulatedPayload.value.unshift(...payloadToSend); // Re-add if failed (optional)
           }
         }
       }, 300); // 500ms debounce delay
+    }
+  }
+
+  //flush function
+
+  async function flush() {
+    if (accumulatedPayload.value.length > 0) {
+      const payloadToSend = [...accumulatedPayload.value];
+      accumulatedPayload.value = [];
+
+      try {
+        await fetch("/api/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payloadToSend),
+          keepalive: true,
+        });
+        if (nearbyUsers.value.length === 0) {
+          getnearbyusers();
+        }
+      } catch (error) {
+        console.error("Failed to flush batched actions on unload:", error);
+      }
     }
   }
 
@@ -150,6 +187,7 @@ export const useUserStore = defineStore("user", () => {
     ageRange,
     gender,
     getnearbyuserPayload,
+    accumulatedPayload,
     type,
     message,
     duration,
@@ -162,5 +200,6 @@ export const useUserStore = defineStore("user", () => {
     getnearbyusers,
     userProfileAction,
     undoUserAction,
+    flush,
   };
 });

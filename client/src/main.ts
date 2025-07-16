@@ -1,22 +1,35 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router' 
-
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import App from "./App.vue";
+import router from "./router";
 // ✅ Core Tailwind + Flowbite styles
-import './assets/main.css'
-import 'flowbite'
+import "./assets/main.css";
+import "flowbite";
 
 // ✅ Import Flowbite Vue components
-import * as FlowbiteVue from 'flowbite-vue'
+import * as FlowbiteVue from "flowbite-vue";
 
-const app = createApp(App)
-app.use(createPinia())
-app.use(router) // if using router
+const app = createApp(App);
+app.use(createPinia());
+app.use(router); // if using router
+
+import { useUserStore } from "./stores/user";
+const userStore = useUserStore();
+const { flush } = userStore;
 
 // ✅ Register all Flowbite Vue components globally
 for (const [name, component] of Object.entries(FlowbiteVue)) {
-  app.component(name, component)
+  app.component(name, component);
 }
 
-app.mount('#app')
+app.mount("#app");
+
+window.addEventListener("beforeunload", () => {
+  flush();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    flush();
+  }
+});

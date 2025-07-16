@@ -58,39 +58,59 @@ export const useUserStore = defineStore("user", () => {
     user.value = null;
   }
 
-  //get profile
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let accumulatedPayload: {
+    user_id: number | undefined;
+    seen_user_id: number;
+    action: string;
+  }[] = [];
+
   async function userProfileAction(action: boolean) {
     if (nearbyUsers.value.length > 0) {
       const currentProfile = nearbyUsers.value[nearbyUsers.value.length - 1];
-      try {
-        const payload = {
-          user_id: user.value?.id,
-          seen_user_id: currentProfile.user_id, // Fixed property name
-          action: action ? "like" : "dislike",
-        };
-        await fetch("/api/actions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-        console.log(
-          `${action ? "Liked" : "Disliked"} profile:`,
-          currentProfile
-        );
-      } catch (error) {
-        console.error("Error performing user action:", error);
-      }
+
+      // Accumulate payload
+      accumulatedPayload.push({
+        user_id: user.value?.id,
+        seen_user_id: currentProfile.user_id,
+        action: action ? "like" : "dislike",
+      });
+
+      // Handle UI state immediately
       if (isRewind.value) {
-        isRewind.value = false; // Reset rewind state after action
-        nearbyUsers.value.pop()
+        isRewind.value = false;
+        nearbyUsers.value.pop();
       } else {
         lastSeenProfile.value = nearbyUsers.value.pop() ?? null;
       }
+
       if (nearbyUsers.value.length === 0) {
-        await getnearbyusers(); // Fetch more users if available
+        await getnearbyusers();
       }
+
+      // Reset debounce timer on each call
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+
+      debounceTimer = setTimeout(async () => {
+        if (accumulatedPayload.length > 0) {
+          const payloadToSend = [...accumulatedPayload];
+          accumulatedPayload = []; // Clear for next batch
+
+          try {
+            await fetch("/api/actions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payloadToSend),
+            });
+            console.log("Batched actions sent:", payloadToSend);
+          } catch (error) {
+            console.error("Error performing batched user actions:", error);
+            accumulatedPayload.unshift(...payloadToSend); // Re-add if failed (optional)
+          }
+        }
+      }, 300); // 500ms debounce delay
     }
   }
 
@@ -98,11 +118,13 @@ export const useUserStore = defineStore("user", () => {
     if (lastSeenProfile.value) {
       try {
         isRewind.value = true;
-        const payload = {
-          user_id: user.value?.id,
-          seen_user_id: lastSeenProfile.value.user_id, // Fixed property name
-          action: "rewind",
-        };
+        const payload = [
+          {
+            user_id: user.value?.id,
+            seen_user_id: lastSeenProfile.value.user_id, // Fixed property name
+            action: "rewind",
+          },
+        ];
         await fetch("/api/actions", {
           method: "POST",
           headers: {

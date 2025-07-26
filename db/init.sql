@@ -72,15 +72,18 @@ CREATE TABLE user_seen_profiles (
 CREATE INDEX IF NOT EXISTS idx_seen_user ON user_seen_profiles (user_id);
 CREATE INDEX IF NOT EXISTS idx_seen_lookup_reverse ON user_seen_profiles (seen_user_id, user_id);
 
--- ✅ MATCHED USERS TABLE (Safe Against Race Conditions)
+-- Enable UUID extension (only once per DB)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Enhanced matched users table
 CREATE TABLE user_matches (
+  match_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- DB generates UUID
   user_id_1 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_id_2 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   matched_at TIMESTAMP DEFAULT now(),
   CHECK (user_id_1 < user_id_2),
-  PRIMARY KEY (user_id_1, user_id_2)
+  UNIQUE (user_id_1, user_id_2) -- prevents duplicate matches even with UUID
 );
 
--- ✅ INDEX FOR REVERSE MATCH LOOKUP
-CREATE INDEX IF NOT EXISTS idx_user_matches_reverse ON user_matches (user_id_2);
-
+CREATE INDEX IF NOT EXISTS idx_user_matches_user1 ON user_matches (user_id_1);
+CREATE INDEX IF NOT EXISTS idx_user_matches_user2 ON user_matches (user_id_2);

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { pool } from "../db/index";
+import { pool } from "../db/postGres";
 
 export const getNearbyUsers = async (req: Request, res: Response) => {
   try {

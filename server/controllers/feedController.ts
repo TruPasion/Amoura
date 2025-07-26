@@ -1,10 +1,25 @@
 import { Request, Response } from "express";
-import { pool } from "../db/index";
+import { pool } from "../db/postGres";
+import { redis } from "../db/redisClient";
 
 type ActionEntry = {
   user_id: number;
   seen_user_id: number;
   action: "like" | "dislike" | "rewind";
+};
+
+// Remove match from Redis stream by UUID
+const removeMatchFromRedis = async (matchId: string) => {
+  try {
+    const deletedCount = await redis.xDel("match_stream", matchId);
+    if (deletedCount > 0) {
+      console.log(`Deleted match_stream entry with ID: ${matchId}`);
+    } else {
+      console.log(`No Redis match_stream entry found for ID: ${matchId}`);
+    }
+  } catch (err) {
+    console.error("Error deleting Redis stream entry:", err);
+  }
 };
 
 // Async background processor for checking and inserting mutual matches
@@ -13,24 +28,48 @@ const checkAndInsertMutualMatches = async (likePairs: [number, number][]) => {
 
   const client = await pool.connect();
   try {
+    // Insert matches and return the inserted rows including the UUID id
     const matchValues = likePairs
       .map(([user_id, seen_user_id]) => `(${seen_user_id}, ${user_id})`) // reverse pair
       .join(", ");
 
     const query = `
-      INSERT INTO user_matches (user_id_1, user_id_2, matched_at)
+      INSERT INTO user_matches (user_id_1, user_id_2)
       SELECT
         LEAST(sp1.user_id, sp1.seen_user_id),
-        GREATEST(sp1.user_id, sp1.seen_user_id),
-        NOW()
+        GREATEST(sp1.user_id, sp1.seen_user_id)
       FROM user_seen_profiles sp1
       JOIN (VALUES ${matchValues}) AS new_likes(user_id, seen_user_id)
         ON sp1.user_id = new_likes.user_id AND sp1.seen_user_id = new_likes.seen_user_id
       WHERE sp1.action = 'like'
-      ON CONFLICT DO NOTHING;
+      ON CONFLICT DO NOTHING
+      RETURNING match_id, user_id_1, user_id_2;
     `;
 
-    await client.query(query);
+    const result = await client.query(query);
+
+    // Fetch usernames for the matched users
+    for (const row of result.rows) {
+      const userQuery = `
+        SELECT full_name FROM user_profiles WHERE user_id = $1;
+      `;
+
+      const user1Res = await client.query(userQuery, [row.user_id_1]);
+      const user2Res = await client.query(userQuery, [row.user_id_2]);
+
+      const user1Name = user1Res.rows[0]?.full_name || "Unknown";
+      const user2Name = user2Res.rows[0]?.full_name || "Unknown";
+
+      // Push newly created matches to Redis stream with UUID id and usernames
+      await redis.xAdd("match_stream", "*", {
+        id: row.match_id, // UUID string
+        user_id_1: row.user_id_1.toString(),
+        user_id_2: row.user_id_2.toString(),
+        user_name_1: user1Name,
+        user_name_2: user2Name,
+        type: "match",
+      });
+    }
   } catch (err) {
     console.error("Error inserting mutual matches:", err);
   } finally {
@@ -76,18 +115,31 @@ export const feedUserAction = async (req: Request, res: Response) => {
       }
 
       for (const { user_id, seen_user_id } of rewindEntries) {
+        console.log(typeof user_id, user_id);
+        console.log(typeof seen_user_id, seen_user_id);
+
         // 1. Delete from user_seen_profiles
         await client.query(
-          `DELETE FROM user_seen_profiles WHERE user_id = $1 AND seen_user_id = $2;`,
+          `DELETE FROM user_seen_profiles WHERE user_id = $1::integer AND seen_user_id = $2::integer;`,
           [user_id, seen_user_id]
         );
 
-        // 2. Delete from user_matches if they were matched
-        await client.query(
-          `DELETE FROM user_matches 
-     WHERE user_id_1 = LEAST($1, $2) AND user_id_2 = GREATEST($1, $2);`,
+        // 2. Get match id from user_matches for deletion
+        const matchRes = await client.query(
+          `SELECT match_id FROM user_matches WHERE user_id_1 = LEAST($1::integer, $2::integer) AND user_id_2 = GREATEST($1::integer, $2::integer);`,
           [user_id, seen_user_id]
         );
+        if ((matchRes.rowCount ?? 0) > 0) {
+          const matchId = matchRes.rows[0].match_id;
+
+          // 3. Delete from user_matches
+          await client.query(`DELETE FROM user_matches WHERE match_id = $1;`, [
+            matchId,
+          ]);
+
+          // 4. Delete from Redis stream by match UUID
+          await removeMatchFromRedis(matchId);
+        }
       }
 
       await client.query("COMMIT");

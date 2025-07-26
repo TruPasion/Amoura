@@ -1,4 +1,5 @@
 <template>
+  <Toaster />
   <div class="h-screen w-full flex relative">
     <!-- Sidebar -->
     <div
@@ -27,6 +28,7 @@
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
 import Sidenav from "../components/Home/Sidenav.vue";
 import Feed from "../components/Home/Feed.vue";
+import Toaster from "../components/toast/Toaster.vue";
 
 const isHovered = ref(false);
 const screenWidth = ref(
@@ -76,11 +78,12 @@ const connectWebSocket = (userId: number | undefined) => {
   ws.value.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+      console.log("Received message:", data);
 
       if (data.type === "match") {
         // Show match toast
         userStore.setMessage(
-          `Aura matched with ${data.username}`,
+          data.message || "You have a new match!",
           "success",
           5000
         );

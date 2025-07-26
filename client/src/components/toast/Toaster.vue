@@ -25,6 +25,7 @@ const visible = ref(false);
 watch(duration, (newDuration) => {
   if (newDuration > 0) {
     visible.value = true;
+    console.log("Toast message:", message.value);
     setTimeout(() => {
       visible.value = false;
       resetMessage();

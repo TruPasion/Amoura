@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../db/index';
+import { pool } from '../db/postGres';
 
 // CREATE user
 export const createUser = async (req: Request, res: Response) => {

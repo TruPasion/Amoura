@@ -7,7 +7,7 @@ if (!JWT_SECRET) {
 }
 
 export function generateAccessToken(userId: number): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '3h' });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '3h', algorithm: 'HS256' });
 }
 
 export function verifyAccessToken(token: string): { userId: number } {

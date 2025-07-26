@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import LandingPage from "../views/Landingpage.vue";
 import Home from "../views/Home.vue";
 import Registration from "../components/Registration/Regview.vue";
+import Chat from "../components/Chat/ChatComponent.vue"
 import { useUserStore } from "../stores/user";
 
 import { getDistanceInMeters } from "../utils/geo";
@@ -19,6 +20,10 @@ const routes = [
   {
     path: "/registration",
     component: Registration,
+  },
+  {
+    path: "/app/chat",
+    component: Chat,
   },
 ];
 

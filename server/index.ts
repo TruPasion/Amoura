@@ -7,10 +7,10 @@ import feedRoutes from "./routes/feedRoutes";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { authMiddleware } from "./middlewares/authMiddleware";
-import multer from 'multer';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import fs from 'fs';
+import multer from "multer";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import fs from "fs";
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,12 +30,10 @@ const upload = multer({ storage }); // Create the upload instance
 const app = express();
 const PORT = 3000;
 
-
-const uploadDir = join(__dirname, '../client/public/uploads');
+const uploadDir = join(__dirname, "../client/public/uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
-
 
 // Add this middleware to parse JSON bodies
 app.use(express.json());
@@ -49,8 +47,8 @@ app.get("/api/hello", (req, res) => {
 // Mount your API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/gis", authMiddleware, georoutes);
-app.use("/api/users", authMiddleware, userRoutes); 
-app.use("/api/actions", authMiddleware, feedRoutes); 
+app.use("/api/users", authMiddleware, userRoutes);
+app.use("/api/actions", authMiddleware, feedRoutes);
 // Serve static files from the uploads directory
 
 // Upload endpoint
@@ -87,6 +85,20 @@ app.use(
   })
 );
 
+// Proxy WebSocket upgrade requests on /ws to the WS server
+app.use(
+  "/ws",
+  createProxyMiddleware({
+    target: "ws://localhost:8000", // your WS backend
+    ws: true,
+    changeOrigin: true,
+    pathRewrite: {
+      "^/ws": "", // optional: strip `/ws` before sending to target
+    },
+  })
+);
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
+ 

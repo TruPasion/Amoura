@@ -30,9 +30,6 @@
       </li>
     </ul>
   </template>
-  <template v-else>
-    <p>No matches found</p>
-  </template>
 </template>
 
 <script setup lang="ts">

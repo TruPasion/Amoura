@@ -77,6 +77,39 @@ const checkAndInsertMutualMatches = async (likePairs: [number, number][]) => {
   }
 };
 
+// Function to fetch matched user profiles
+export const getMatchedUserProfiles = async (userId: number) => {
+  const client = await pool.connect();
+
+  try {
+    const query = `
+      WITH matched_users AS (
+        SELECT 
+          CASE 
+            WHEN user_id_1 = $1 THEN user_id_2
+            ELSE user_id_1
+          END AS matched_user_id
+        FROM user_matches
+        WHERE user_id_1 = $1 OR user_id_2 = $1
+      )
+      SELECT 
+        up.user_id,
+        up.full_name,
+        up.profile_photo
+      FROM matched_users mu
+      JOIN user_profiles up ON mu.matched_user_id = up.user_id;
+    `;
+
+    const result = await client.query(query, [userId]);
+    return result.rows;
+  } catch (error) {
+    console.error("Error fetching matched user profiles:", error);
+    throw new Error("Failed to fetch matched user profiles");
+  } finally {
+    client.release();
+  }
+};
+
 // Main API handler
 export const feedUserAction = async (req: Request, res: Response) => {
   const actions: ActionEntry[] = req.body;
@@ -159,3 +192,5 @@ export const feedUserAction = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+

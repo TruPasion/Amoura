@@ -89,6 +89,7 @@ function cancel() {
 async function apply() {
   const nearbyUsers = await userStore.getnearbyusers();
   console.log("Nearby Users:", nearbyUsers);
+  emit("close");
 }
 </script>
 

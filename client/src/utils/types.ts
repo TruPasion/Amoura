@@ -31,3 +31,8 @@ export interface NearbyUserProfile {
   distance: number; // Distance in meters
 }
 
+export interface Match {
+  user_id: number;
+  full_name: string;
+  profile_photo: string;
+}

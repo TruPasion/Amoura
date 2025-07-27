@@ -1,6 +1,8 @@
 <template>
   <Toaster />
-  <div class="h-screen w-full flex relative bg-gradient-to-br from-gray-100 to-gray-200">
+  <div
+    class="h-screen w-full flex relative bg-gradient-to-br from-gray-100 to-gray-200"
+  >
     <!-- Sidebar -->
     <div
       :class="[
@@ -19,17 +21,26 @@
       class="flex-1 h-full bg-white overflow-auto rounded-lg shadow-lg p-6"
       style="height: 100vh"
     >
-      <Feed />
+      <template v-if="!chatUser?.user_id">
+        <Feed />
+      </template>
+
+      <template v-else>
+        <userChat />
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
+import userChat from "../components/Chat/userChat.vue";
 import Sidenav from "../components/Home/Sidenav.vue";
 import Feed from "../components/Home/Feed.vue";
 import Toaster from "../components/toast/Toaster.vue";
+import { useActionStore } from "../stores/actionStore";
 
+const { chatUser } = storeToRefs(useActionStore());
 
 const isHovered = ref(false);
 const screenWidth = ref(

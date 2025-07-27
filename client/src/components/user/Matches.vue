@@ -8,7 +8,12 @@
       <li
         v-for="match in matches"
         :key="match.user_id"
-        class="bg-gradient-to-r from-gray-50 to-gray-100 shadow-lg rounded-lg p-3 mb-3 hover:shadow-xl transition-shadow duration-300 border border-gray-200"
+        :class="[
+          'bg-white shadow-md rounded-lg p-4 mb-4 hover:shadow-lg transition-shadow duration-300 border cursor-pointer',
+          chatUser?.user_id === match.user_id ? 'border-blue-600 ring-2 ring-blue-400' : 'border-gray-300'
+        ]"
+        @click="openChat(match)"
+        style="margin: 0.5rem; padding: 1rem;"
       >
         <div
           :class="
@@ -41,14 +46,14 @@ import { useActionStore } from "../../stores/actionStore";
 
 const userStore = useUserStore();
 const actionStore = useActionStore();
-const { getMatches } = actionStore;
+const { getMatches, openChat } = actionStore;
 const { user } = storeToRefs(userStore);
 
 const props = defineProps<{
   isCollapsed: boolean;
 }>();
 
-const { matches } = storeToRefs(actionStore);
+const { matches, chatUser } = storeToRefs(actionStore);
 
 onMounted(async () => {
   if (user.value && user.value.id) {

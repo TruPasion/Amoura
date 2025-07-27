@@ -4,6 +4,18 @@ import { ref } from "vue";
 
 export const useActionStore = defineStore("actionStore", () => {
   const matches = ref<Match[]>([]);
+  const openchat = ref(false);
+  const chatUser = ref<Match | null>(null);
+
+  const openChat = (user: Match | null) => {
+    chatUser.value = user;
+    openchat.value = true;
+  };
+
+  const closeChat = () => {
+    chatUser.value = null;
+    openchat.value = false;
+  };
 
   const getMatches = async (userId: number) => {
     try {
@@ -17,9 +29,12 @@ export const useActionStore = defineStore("actionStore", () => {
       console.error("Error fetching matches:", error);
     }
   };
-    // Fetch matches when the store is initialized  
+  // Fetch matches when the store is initialized
   return {
+    chatUser,
     matches,
     getMatches,
+    openChat,
+    closeChat,
   };
 });

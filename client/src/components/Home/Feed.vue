@@ -1,5 +1,5 @@
 <template>
-  <div class="feed-container flex flex-col h-screen p-4">
+  <div class="feed-container flex flex-col h-full p-4">
     <!-- Filters and Header -->
     <div class="flex items-center mb-4">
       <div class="filters flex-none relative">
@@ -17,12 +17,10 @@
       </div>
     </div>
 
-    <!-- Filter Box Component - Shown/Hidden based on state -->
-    <!-- <FilterBox v-if="showFilterBox" @close="showFilterBox = false" /> -->
-
     <!-- Card Section -->
     <div
       class="feb-card flex border rounded-lg shadow-md overflow-hidden flex-grow w-full"
+      style="max-height: calc(100vh - 8rem);"
     >
       <template v-if="nearbyUsers.length > 0">
         <!-- Left Half: Image -->
@@ -111,8 +109,6 @@ const lastUser = computed(() => {
     : null;
 });
 
-//console.log("Last User:", lastUser.value);
-
 const showFilterBox = ref(false);
 
 const userAction = (action: "send_aura" | "rewind" | "skip") => {
@@ -135,10 +131,8 @@ function toggleFilterBox() {
   showFilterBox.value = !showFilterBox.value;
 }
 
-// get the feeds with nearby users
 onMounted(async () => {
   await getnearbyusers();
-  //console.log("Feed component mounted");
 });
 </script>
 

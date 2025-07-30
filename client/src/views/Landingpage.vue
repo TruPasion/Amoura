@@ -29,6 +29,19 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
 });
+
+onMounted(() => {
+  const el = document.getElementById("navbar");
+  if (el) {
+    navbarHeight.value = el.offsetHeight; // Revert navbar height adjustment
+  }
+
+  window.addEventListener("scroll", handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("scroll", handleScroll);
+});
 </script>
 
 <template>
@@ -43,24 +56,34 @@ onUnmounted(() => {
   </div>
 
   <div
-    :style="`padding-top: ${navbarHeight}px; height: calc(100vh); background-image: url('/bg3.jpg');`"
-    class="bg-center bg-cover bg-no-repeat flex justify-center"
+    :style="`padding-top: ${navbarHeight}px; height: 100vh; background-image: url('/bg3.jpg');`"
+    class="bg-center bg-cover bg-no-repeat flex items-center justify-center relative overflow-hidden"
   >
-    <div class="px-4">
-      <div
-        class="font-pacifico text-white text-center pt-7 text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl"
-      >
-        Boost your Relationship aura ++
-      </div>
-      <div
-        class="font-pacifico text-white text-center mt-6 text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl"
-      >
-        with Amoura
-      </div>
-      <div class="text-white text-center mt-8">
-        <div class="w-64 flex justify-center mx-auto">
-          <GoogleloginButton />
+    <!-- Overlay for better text readability -->
+    <div class="absolute inset-0 bg-black bg-opacity-30"></div>
+
+    <div
+      class="px-6 text-center relative z-10 w-full h-full flex flex-col py-8"
+    >
+      <!-- Main Heading - Top -->
+      <div>
+        <div>
+          <div
+            class="font-pacifico text-white text-center text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-tight"
+          >
+            Boost your Relationship aura ++
+          </div>
+          <div
+            class="font-pacifico text-white text-center mt-3 text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-tight"
+          >
+            with Amoura
+          </div>
         </div>
+      </div>
+
+      <!-- Coming Soon - Middle -->
+      <div class="w-full flex justify-center m-4">
+        <GoogleloginButton />
       </div>
     </div>
   </div>

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="google-login-button" @click="handleWrapperClick">
     <div id="google-btn" class="my-4"></div>
   </div>
 </template>
@@ -58,6 +58,15 @@ function handleCredentialResponse(
       console.error("❌ Authentication failed:", err.message);
     });
 }
+
+const handleWrapperClick = () => {
+  // When the wrapper is clicked, try to click the actual Google button
+  const googleButton = document.querySelector('#google-btn div[role="button"]') as HTMLElement;
+  if (googleButton) {
+    console.log('✅ Wrapper clicked, triggering Google button...');
+    googleButton.click();
+  }
+};
 
 onMounted(() => {
   const interval = setInterval(() => {

@@ -7,10 +7,7 @@
           class="w-6 h-6 text-gray-600 cursor-pointer"
           @click="toggleFilterBox"
         />
-        <FilterBox
-          v-if="showFilterBox"
-          @close="showFilterBox = false"
-        />
+        <FilterBox v-if="showFilterBox" @close="showFilterBox = false" />
       </div>
       <div class="flex-grow text-center">
         <h1 class="text-5xl font-pacifico text-purple-700">Amoura</h1>
@@ -20,7 +17,7 @@
     <!-- Card Section -->
     <div
       class="feb-card flex border rounded-lg shadow-md overflow-hidden flex-grow w-full"
-      style="max-height: calc(100vh - 8rem);"
+      style="max-height: calc(100vh - 8rem)"
     >
       <template v-if="nearbyUsers.length > 0">
         <!-- Left Half: Image -->
@@ -132,7 +129,9 @@ function toggleFilterBox() {
 }
 
 onMounted(async () => {
-  await getnearbyusers();
+  if (!nearbyUsers.value.length) {
+    await getnearbyusers();
+  }
 });
 </script>
 

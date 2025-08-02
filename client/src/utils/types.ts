@@ -36,3 +36,9 @@ export interface Match {
   full_name: string;
   profile_photo: string;
 }
+
+export interface UserStatus {
+  user_id: string;
+  status: string;
+  last_seen: string; // ISO 8601 date string
+}

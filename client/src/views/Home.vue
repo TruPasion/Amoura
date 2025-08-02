@@ -26,7 +26,7 @@
       </template>
 
       <template v-else>
-        <userChat />
+        <userChat :chatUser="chatUser" />
       </template>
     </div>
   </div>
@@ -68,53 +68,15 @@ const isSidenavCollapsed = computed(() => {
 });
 
 import { useUserStore } from "../stores/user";
+import { useChatStore } from "../stores/chatStore";
 import { storeToRefs } from "pinia";
 
 const userStore = useUserStore();
+const chatStore = useChatStore();
 const { user } = storeToRefs(userStore);
+const { ws } = storeToRefs(chatStore);
 
-const ws = ref<WebSocket | null>(null);
 // const message = ref("");
-const messages = ref<string[]>([]);
-
-const connectWebSocket = (userId: number | undefined) => {
-  ws.value = new WebSocket("ws://localhost:8000/ws");
-
-  ws.value.onopen = () => {
-    if (userId !== undefined) {
-      const payload = JSON.stringify({ user_id: userId });
-      ws.value?.send(payload);
-    }
-  };
-
-  ws.value.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      console.log("Received message:", data);
-
-      if (data.type === "match") {
-        // Show match toast
-        userStore.setMessage(
-          data.message || "You have a new match!",
-          "success",
-          5000
-        );
-      }
-
-      messages.value.push(event.data); // Optional, for logs/debug
-    } catch (err) {
-      console.error("Invalid message format from server:", event.data);
-    }
-  };
-
-  ws.value.onerror = (error) => {
-    console.error("WebSocket error:", error);
-  };
-
-  ws.value.onclose = () => {
-    console.log("WebSocket connection closed");
-  };
-};
 
 // const sendMessage = () => {
 //   if (ws.value && ws.value.readyState === WebSocket.OPEN) {
@@ -126,7 +88,7 @@ const connectWebSocket = (userId: number | undefined) => {
 // };
 
 onMounted(() => {
-  connectWebSocket(user.value?.id);
+  chatStore.connectWebSocket(user.value?.id);
 });
 
 onBeforeUnmount(() => {

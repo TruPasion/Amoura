@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   db:
-    image: postgis/postgis:15-3.3  # ✅ use PostGIS-enabled image
+    image: postgis/postgis:15-3.3 # ✅ use PostGIS-enabled image
     container_name: postgres_db
     ports:
-      - '5432:5432'
+      - "5432:5432"
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
@@ -18,7 +18,7 @@ services:
     image: redis:7-alpine
     container_name: redis_notify
     ports:
-      - '6380:6379'
+      - "6380:6379"
     volumes:
       - redisdata:/data
     restart: unless-stopped

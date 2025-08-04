@@ -83,8 +83,17 @@ const currentTime = ref(new Date());
 
 // Function to format last seen time
 const formatLastSeen = (lastSeen: string) => {
+  console.log("Formatting last seen time:", lastSeen);
+  if (!lastSeen || isNaN(Date.parse(lastSeen))) {
+    console.error("Invalid lastSeen value:", lastSeen);
+    return "Unknown";
+  }
+
+  // Remove fractional seconds if present
+  const sanitizedLastSeen = lastSeen.split(".")[0];
+
   // Parse UTC timestamp from database (backend stores in UTC)
-  const utcDate = new Date(lastSeen + "Z"); // Ensure it's treated as UTC
+  const utcDate = new Date(sanitizedLastSeen + "Z"); // Ensure it's treated as UTC
 
   // Get current time (browser automatically handles local timezone)
   const now = currentTime.value;

@@ -89,17 +89,27 @@ const currentTime = ref(new Date());
 
 // Function to format last seen time
 const formatLastSeen = (lastSeen: string) => {
-  const date = new Date(lastSeen);
+  // Parse UTC timestamp from database (backend stores in UTC)
+  const utcDate = new Date(lastSeen + "Z"); // Ensure it's treated as UTC
 
-  // Get current time in IST (Indian Standard Time)
+  // Get current time (browser automatically handles local timezone)
   const now = currentTime.value;
-  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-  const istNow = new Date(now.getTime() + istOffset);
-  const istLastSeen = new Date(date.getTime() + istOffset);
+
+  // Convert UTC timestamp to user's local timezone
+  const localLastSeen = new Date(utcDate.getTime());
 
   const diffInMinutes = Math.floor(
-    (istNow.getTime() - istLastSeen.getTime()) / (1000 * 60)
+    (now.getTime() - localLastSeen.getTime()) / (1000 * 60)
   );
+
+  // Get user's timezone for logging
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  console.log("User timezone:", userTimezone);
+  console.log("UTC Last Seen:", utcDate.toISOString());
+  console.log("Local Last Seen:", localLastSeen.toLocaleString());
+  console.log("Current Time:", now.toLocaleString());
+  console.log("Diff in minutes:", diffInMinutes);
 
   if (diffInMinutes < 1) {
     return "Just now";

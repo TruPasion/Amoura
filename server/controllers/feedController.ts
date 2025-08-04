@@ -134,7 +134,7 @@ export const feedUserAction = async (req: Request, res: Response) => {
         const values = likeDislikeEntries
           .map(({ user_id, seen_user_id, action }) => {
             if (action === "like") likePairs.push([user_id, seen_user_id]);
-            return `(${user_id}, ${seen_user_id}, '${action}', NOW())`;
+            return `(${user_id}, ${seen_user_id}, '${action}', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')`;
           })
           .join(", ");
 
@@ -192,5 +192,3 @@ export const feedUserAction = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
-

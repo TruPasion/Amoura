@@ -31,7 +31,7 @@ export async function googleAuthHandler(req: Request, res: Response) {
       // Update login time
       user = await pool.query(
         `UPDATE users
-         SET last_login_at = now()
+         SET last_login_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
          WHERE id = $1 RETURNING *`,
         [existingUser.rows[0].id]
       );
@@ -39,7 +39,7 @@ export async function googleAuthHandler(req: Request, res: Response) {
       // Create new user
       user = await pool.query(
         `INSERT INTO users (provider, provider_user_id, email, name, profile_picture, last_login_at)
-         VALUES ('google', $1, $2, $3, $4, now())
+         VALUES ('google', $1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
          RETURNING *`,
         [provider_user_id, email, name, profile_picture]
       );
@@ -112,13 +112,13 @@ export async function getMeHandler(req: Request, res: Response) {
       await pool.query(
         `
         INSERT INTO user_locations (user_id, latitude, longitude, location, updated_at)
-        VALUES ($1, $2::double precision, $3::double precision, ST_SetSRID(ST_MakePoint($3::double precision, $2::double precision), 4326), now())
+        VALUES ($1, $2::double precision, $3::double precision, ST_SetSRID(ST_MakePoint($3::double precision, $2::double precision), 4326), CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
         ON CONFLICT (user_id)
         DO UPDATE SET
           latitude = EXCLUDED.latitude,
           longitude = EXCLUDED.longitude,
           location = EXCLUDED.location,
-          updated_at = now();
+          updated_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC';
         `,
         [user.rows[0].id, latitude, longitude]
       );

@@ -8,8 +8,8 @@ CREATE TABLE users (
 
   active BOOLEAN NOT NULL DEFAULT TRUE,           -- Enable/disable user
   last_login_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now(),
+  created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+  updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
   deleted_at TIMESTAMP,                           -- Soft delete
 
   UNIQUE (provider, provider_user_id),            -- Prevent duplicate users
@@ -31,8 +31,8 @@ CREATE TABLE user_profiles (
   latitude DECIMAL(9,6),                  -- Precision up to ~11cm
   longitude DECIMAL(9,6),
 
-  created_at TIMESTAMP DEFAULT now(),
-  updated_at TIMESTAMP DEFAULT now(),
+  created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+  updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
 
   UNIQUE (user_id)                        -- 1-to-1 relation with users
 );
@@ -49,7 +49,7 @@ CREATE TABLE user_locations (
   longitude DECIMAL(9,6),
   location GEOGRAPHY(Point, 4326),
   location_access BOOLEAN DEFAULT FALSE,
-  updated_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
 
   UNIQUE (user_id)
 );
@@ -64,7 +64,7 @@ CREATE TABLE user_seen_profiles (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   seen_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   action VARCHAR(10) NOT NULL DEFAULT 'like' CHECK (action IN ('like', 'dislike')),
-  seen_at TIMESTAMP DEFAULT now(),
+  seen_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
   PRIMARY KEY (user_id, seen_user_id)
 );
 
@@ -80,7 +80,7 @@ CREATE TABLE user_matches (
   match_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- DB generates UUID
   user_id_1 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_id_2 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  matched_at TIMESTAMP DEFAULT now(),
+  matched_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
   CHECK (user_id_1 < user_id_2),
   UNIQUE (user_id_1, user_id_2) -- prevents duplicate matches even with UUID
 );

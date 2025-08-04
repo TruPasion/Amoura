@@ -6,9 +6,12 @@ import type { UserStatus } from "../utils/types";
 
 export const useChatStore = defineStore("chat", () => {
   const ws = ref<WebSocket | null>(null);
+  const pingInterval = ref<number | null>(null);
+  const reconnectTimeout = ref<number | null>(null);
+
   const messages = ref<string[]>([]);
-  const actionStore = useActionStore();
   const userStatus = ref<UserStatus | null>(null);
+  const actionStore = useActionStore();
   const { chatUser } = storeToRefs(actionStore);
 
   const connectWebSocket = (userId: number | undefined) => {
@@ -16,10 +19,16 @@ export const useChatStore = defineStore("chat", () => {
     ws.value = new WebSocket("ws://localhost:8000/ws");
 
     ws.value.onopen = () => {
+      console.log("✅ WebSocket connected");
+
+      // Send onboarding payload
       if (userId !== undefined) {
         const payload = JSON.stringify({ user_id: userId });
         ws.value?.send(payload);
       }
+
+      // Start ping interval
+      startPing();
     };
 
     ws.value.onmessage = (event) => {
@@ -27,9 +36,8 @@ export const useChatStore = defineStore("chat", () => {
         const data = JSON.parse(event.data);
         console.log("Received message:", data);
 
-        // Print the message content
-        if (data) {
-          console.log("Message content:", data);
+        if (data.type === "pong") {
+          console.log("✅ Pong from server");
         }
 
         if (data.type === "onboard_response" || data.type === "status_update") {
@@ -44,7 +52,6 @@ export const useChatStore = defineStore("chat", () => {
         }
 
         if (data.type === "match") {
-          // Show match toast
           userStore.setMessage(
             data.message || "You have a new match!",
             "success",
@@ -52,7 +59,7 @@ export const useChatStore = defineStore("chat", () => {
           );
         }
 
-        messages.value.push(event.data); // Optional, for logs/debug
+        messages.value.push(event.data);
       } catch (err) {
         console.error("Invalid message format from server:", event.data);
       }
@@ -60,11 +67,41 @@ export const useChatStore = defineStore("chat", () => {
 
     ws.value.onerror = (error) => {
       console.error("WebSocket error:", error);
+      cleanup();
     };
 
     ws.value.onclose = () => {
-      console.log("WebSocket connection closed");
+      console.log("❌ WebSocket closed");
+      cleanup();
+      scheduleReconnect(userId);
     };
+  };
+
+  const startPing = () => {
+    if (pingInterval.value) clearInterval(pingInterval.value);
+    pingInterval.value = setInterval(() => {
+      if (ws.value?.readyState === WebSocket.OPEN) {
+        ws.value.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 10000); // every 10 seconds
+  };
+
+  const cleanup = () => {
+    if (pingInterval.value) clearInterval(pingInterval.value);
+    pingInterval.value = null;
+
+    if (ws.value) {
+      ws.value.close();
+      ws.value = null;
+    }
+  };
+
+  const scheduleReconnect = (userId: number | undefined) => {
+    if (reconnectTimeout.value) clearTimeout(reconnectTimeout.value);
+    reconnectTimeout.value = setTimeout(() => {
+      console.log("🔁 Reconnecting WebSocket...");
+      connectWebSocket(userId);
+    }, 3000); // 3 second delay
   };
 
   return {

@@ -18,13 +18,7 @@
               {{ props.chatUser.full_name }}
             </h1>
             <p class="text-sm text-gray-500">
-              {{
-                userStatus?.status == "online"
-                  ? "Online"
-                  : userStatus?.last_seen
-                  ? "Last seen: " + formatLastSeen(userStatus.last_seen)
-                  : "Offline"
-              }}
+              {{ formattedLastSeen }}
             </p>
           </div>
         </div>
@@ -64,7 +58,7 @@
 import { useActionStore } from "../../stores/actionStore";
 import { FwbAvatar } from "flowbite-vue";
 import type { Match } from "../../utils/types";
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, computed } from "vue";
 
 import { useChatStore } from "../../stores/chatStore";
 import { useUserStore } from "../../stores/user";
@@ -144,6 +138,16 @@ const stopLastSeenTimer = () => {
     lastSeenTimer.value = null;
   }
 };
+
+const formattedLastSeen = computed(() => {
+  if (userStatus.value?.status === "online") {
+    return "Online";
+  } else if (userStatus.value?.last_seen) {
+    return formatLastSeen(userStatus.value.last_seen);
+  } else {
+    return "Offline";
+  }
+});
 
 onMounted(() => {
   // Send get_status message to server when component mounts

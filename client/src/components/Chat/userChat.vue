@@ -28,11 +28,72 @@
       </div>
 
       <!-- Chat Messages Area -->
-      <div class="flex-1 bg-white p-4 overflow-y-auto">
-        <!-- Messages will go here -->
-        <p class="text-center text-gray-500">
+      <div class="flex-1 bg-white p-4 overflow-y-auto" ref="messagesContainer">
+        <div v-if="messages.length === 0" class="text-center text-gray-500">
           Start chatting with {{ props.chatUser.full_name }}!
-        </p>
+        </div>
+
+        <!-- Messages -->
+        <div
+          v-for="message in messages"
+          :key="message.client_msg_id"
+          class="mb-4"
+        >
+          <div
+            :class="
+              message.from === user?.id?.toString()
+                ? 'flex justify-end'
+                : 'flex justify-start'
+            "
+          >
+            <div
+              :class="
+                message.from === user?.id?.toString()
+                  ? 'bg-blue-500 text-white max-w-xs lg:max-w-md px-4 py-2 rounded-lg'
+                  : 'bg-gray-200 text-gray-800 max-w-xs lg:max-w-md px-4 py-2 rounded-lg'
+              "
+            >
+              <p class="text-sm">{{ message.content }}</p>
+              <div
+                v-if="message.status !== 'sending'"
+                class="flex items-center justify-between mt-1"
+              >
+                <span class="text-xs opacity-70">{{
+                  formatMessageTime(message.timestamp)
+                }}</span>
+                <div
+                  v-if="message.from === user?.id?.toString()"
+                  class="flex items-center ml-2"
+                >
+                  <!-- Single tick (sent) -->
+                  <span
+                    v-if="message.status === 'sent'"
+                    class="text-xs opacity-70"
+                    >✓</span
+                  >
+                  <!-- Double tick (delivered) -->
+                  <span
+                    v-else-if="message.status === 'delivered'"
+                    class="text-xs opacity-70"
+                    >✓✓</span
+                  >
+                  <!-- Double tick blue (read) -->
+                  <span
+                    v-else-if="message.status === 'read'"
+                    class="text-xs text-blue-300"
+                    >✓✓</span
+                  >
+                  <!-- Failed status -->
+                  <span
+                    v-else-if="message.status === 'failed'"
+                    class="text-xs text-red-500"
+                    >⚠</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Chat Input Area -->
@@ -40,12 +101,16 @@
         class="flex items-center bg-gradient-to-r from-gray-100 to-gray-200 p-4 border-t border-gray-300 rounded-b-lg"
       >
         <textarea
+          v-model="messageInput"
+          @keydown.enter.prevent="sendMessage"
           class="flex-1 resize-none border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           rows="1"
           placeholder="Type a message..."
         ></textarea>
         <button
-          class="ml-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="sendMessage"
+          :disabled="!messageInput.trim()"
+          class="ml-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
           Send
         </button>
@@ -58,7 +123,8 @@
 import { useActionStore } from "../../stores/actionStore";
 import { FwbAvatar } from "flowbite-vue";
 import type { Match } from "../../utils/types";
-import { onMounted, onUnmounted, ref, computed } from "vue";
+import { onMounted, onUnmounted, ref, computed, nextTick } from "vue";
+import { nanoid } from "nanoid";
 
 import { useChatStore } from "../../stores/chatStore";
 import { useUserStore } from "../../stores/user";
@@ -77,9 +143,71 @@ const props = defineProps<{
 const actionStore = useActionStore();
 const { closeChat } = actionStore;
 
+import type { Message } from "../../utils/types"; // Import Message interface
+
+// Message related refs
+const messageInput = ref("");
+const messages = computed(() => {
+  const userId = props.chatUser.user_id;
+  if (!userId || !props.chatUser) return [];
+  return chatStore.getUserMessages(props.chatUser.user_id);
+});
+const messagesContainer = ref<HTMLElement | null>(null);
+
 // Reactive timer for updating last seen
 const lastSeenTimer = ref<number | null>(null);
 const currentTime = ref(new Date());
+
+// Function to format message timestamp
+const formatMessageTime = (timestamp: string) => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+// Function to send message
+const sendMessage = () => {
+  if (!messageInput.value.trim() || !ws.value || !user.value) return;
+
+  const clientMsgId = nanoid();
+  const message: Message = {
+    client_msg_id: clientMsgId,
+    from: user.value.id.toString(),
+    to: props.chatUser.user_id.toString(),
+    content: messageInput.value.trim(),
+    timestamp: new Date().toISOString(),
+    status: "sending",
+  };
+
+  // Add message to local state
+  chatStore.addUserMessage(props.chatUser.user_id, message);
+
+  // Send message to WebSocket server
+  const wsMessage = {
+    type: "message_sending",
+    to: props.chatUser.user_id.toString(),
+    content: messageInput.value.trim(),
+    client_msg_id: clientMsgId,
+  };
+
+  console.log("Sending message via WebSocket:", wsMessage);
+
+  ws.value.send(JSON.stringify(wsMessage));
+
+  // Clear input
+  messageInput.value = "";
+
+  // Scroll to bottom
+  scrollToBottom();
+};
+
+// Function to scroll messages to bottom
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    }
+  });
+};
 
 // Function to format last seen time
 const formatLastSeen = (lastSeen: string) => {

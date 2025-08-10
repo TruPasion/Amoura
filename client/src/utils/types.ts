@@ -42,3 +42,13 @@ export interface UserStatus {
   status: string;
   last_seen: string; // ISO 8601 date string
 }
+
+// Message interface
+export interface Message {
+  client_msg_id: string;
+  from: string;
+  to: string;
+  content: string;
+  timestamp: string;
+  status: "sent" | "delivered" | "read" | "sending" | "failed" | "received";
+}

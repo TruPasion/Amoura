@@ -53,6 +53,7 @@ export const useChatStore = defineStore("chat", () => {
             console.log("User status updated:", userStatus.value);
           }
         } else if (data.type === "match") {
+          actionStore.getMatches(userId!);
           userStore.setMessage(
             data.message || "You have a new match!",
             "success",

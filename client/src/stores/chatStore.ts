@@ -92,6 +92,7 @@ export const useChatStore = defineStore("chat", () => {
             content: data.content,
             timestamp: data.timestamp,
             status: "received",
+            conversation_id: data.conversation_id || null,
           };
 
           // Add the message to the user's messages

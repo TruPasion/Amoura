@@ -176,6 +176,7 @@ const sendMessage = () => {
     content: messageInput.value.trim(),
     timestamp: new Date().toISOString(),
     status: "sending",
+    conversation_id: null,
   };
 
   // Add message to local state

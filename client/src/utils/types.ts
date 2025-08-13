@@ -51,4 +51,5 @@ export interface Message {
   content: string;
   timestamp: string;
   status: "sent" | "delivered" | "read" | "sending" | "failed" | "received";
+  conversation_id: string | null;
 }

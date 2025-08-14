@@ -4,6 +4,7 @@ import authRoutes from "./routes/auth";
 import georoutes from "./routes/georoutes";
 import userRoutes from "./routes/userRoutes";
 import feedRoutes from "./routes/feedRoutes";
+import chatRoutes from "./routes/chat";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { authMiddleware } from "./middlewares/authMiddleware";
@@ -49,6 +50,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/gis", authMiddleware, georoutes);
 app.use("/api/users", authMiddleware, userRoutes);
 app.use("/api/actions", authMiddleware, feedRoutes);
+app.use("/api/chat", authMiddleware, chatRoutes);
 // Serve static files from the uploads directory
 
 // Upload endpoint
@@ -101,4 +103,3 @@ app.use(
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
- 

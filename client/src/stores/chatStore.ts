@@ -184,6 +184,20 @@ export const useChatStore = defineStore("chat", () => {
     messages.splice(left, 0, message);
   };
 
+  const loadUserMessages = async (userId: number) => {
+    const getChats = async () => {
+      const response = await fetch(`/api/chat/getmessages/${userId}`);
+      if (!response.ok) throw new Error("Failed to fetch user messages");
+      return response.json();
+    };
+
+    try {
+      userMessages.value = await getChats();
+    } catch (error) {
+      console.error("Error loading user messages:", error);
+    }
+  };
+
   return {
     ws,
     userStatus,
@@ -191,5 +205,6 @@ export const useChatStore = defineStore("chat", () => {
     connectWebSocket,
     getUserMessages,
     addUserMessage,
+    loadUserMessages,
   };
 });

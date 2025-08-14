@@ -122,7 +122,8 @@
 <script setup lang="ts">
 import { useActionStore } from "../../stores/actionStore";
 import { FwbAvatar } from "flowbite-vue";
-import type { Match } from "../../utils/types";
+import type { Match, Message } from "../../utils/types";
+import { formatMessageTimeIST, formatLastSeenIST } from "../../utils/types";
 import { onMounted, onUnmounted, ref, computed, nextTick } from "vue";
 import { nanoid } from "nanoid";
 
@@ -143,8 +144,6 @@ const props = defineProps<{
 const actionStore = useActionStore();
 const { closeChat } = actionStore;
 
-import type { Message } from "../../utils/types"; // Import Message interface
-
 // Message related refs
 const messageInput = ref("");
 const messages = computed(() => {
@@ -158,10 +157,9 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const lastSeenTimer = ref<number | null>(null);
 const currentTime = ref(new Date());
 
-// Function to format message timestamp
+// Function to format message timestamp in IST
 const formatMessageTime = (timestamp: string) => {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return formatMessageTimeIST(timestamp);
 };
 
 // Function to send message
@@ -210,50 +208,9 @@ const scrollToBottom = () => {
   });
 };
 
-// Function to format last seen time
+// Function to format last seen time in IST
 const formatLastSeen = (lastSeen: string) => {
-  console.log("Formatting last seen time:", lastSeen);
-  if (!lastSeen || isNaN(Date.parse(lastSeen))) {
-    console.error("Invalid lastSeen value:", lastSeen);
-    return "Unknown";
-  }
-
-  // Remove fractional seconds if present
-  const sanitizedLastSeen = lastSeen.split(".")[0];
-
-  // Parse UTC timestamp from database (backend stores in UTC)
-  const utcDate = new Date(sanitizedLastSeen + "Z"); // Ensure it's treated as UTC
-
-  // Get current time (browser automatically handles local timezone)
-  const now = currentTime.value;
-
-  // Convert UTC timestamp to user's local timezone
-  const localLastSeen = new Date(utcDate.getTime());
-
-  const diffInMinutes = Math.floor(
-    (now.getTime() - localLastSeen.getTime()) / (1000 * 60)
-  );
-
-  // Get user's timezone for logging
-  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  console.log("User timezone:", userTimezone);
-  console.log("UTC Last Seen:", utcDate.toISOString());
-  console.log("Local Last Seen:", localLastSeen.toLocaleString());
-  console.log("Current Time:", now.toLocaleString());
-  console.log("Diff in minutes:", diffInMinutes);
-
-  if (diffInMinutes < 1) {
-    return "Just now";
-  } else if (diffInMinutes < 60) {
-    return `${diffInMinutes}m ago`;
-  } else if (diffInMinutes < 1440) {
-    const hours = Math.floor(diffInMinutes / 60);
-    return `${hours}h ago`;
-  } else {
-    const days = Math.floor(diffInMinutes / 1440);
-    return `${days}d ago`;
-  }
+  return formatLastSeenIST(lastSeen);
 };
 
 // Function to start the timer

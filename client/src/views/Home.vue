@@ -51,8 +51,11 @@ const updateScreenWidth = () => {
   screenWidth.value = window.innerWidth;
 };
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener("resize", updateScreenWidth);
+  if (user.value?.id) {
+    await chatStore.loadUserMessages(user.value.id);
+  }
 });
 
 onUnmounted(() => {

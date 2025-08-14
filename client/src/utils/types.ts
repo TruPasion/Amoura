@@ -53,3 +53,13 @@ export interface Message {
   status: "sent" | "delivered" | "read" | "sending" | "failed" | "received";
   conversation_id: string | null;
 }
+
+// Re-export time utilities for easier access
+export {
+  formatMessageTimeIST,
+  formatMessageTimeIST12Hour,
+  formatDateTimeIST,
+  formatLastSeenIST,
+  getCurrentISTTimestamp,
+  convertToIST,
+} from "./timeUtils";

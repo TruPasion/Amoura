@@ -117,3 +117,43 @@ export const getCurrentISTTimestamp = (): string => {
   const now = new Date();
   return convertToIST(now.toISOString()).toISOString();
 };
+
+/**
+ * Formats timestamp to date string for message grouping
+ * @param timestamp - UTC timestamp string
+ * @returns Formatted date string in IST (e.g., "Today", "Yesterday", "January 15, 2025")
+ */
+export const formatMessageDateIST = (timestamp: string): string => {
+  const istDate = convertToIST(timestamp);
+  const now = new Date();
+  const nowIST = convertToIST(now.toISOString());
+
+  // Reset time to compare dates only
+  const messageDate = new Date(
+    istDate.getFullYear(),
+    istDate.getMonth(),
+    istDate.getDate()
+  );
+  const todayDate = new Date(
+    nowIST.getFullYear(),
+    nowIST.getMonth(),
+    nowIST.getDate()
+  );
+
+  const diffInMs = todayDate.getTime() - messageDate.getTime();
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInDays === 0) {
+    return "Today";
+  } else if (diffInDays === 1) {
+    return "Yesterday";
+  } else {
+    return istDate.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year:
+        nowIST.getFullYear() !== istDate.getFullYear() ? "numeric" : undefined,
+      timeZone: "Asia/Kolkata",
+    });
+  }
+};

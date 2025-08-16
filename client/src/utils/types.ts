@@ -51,7 +51,15 @@ export interface Message {
   content: string;
   timestamp: string;
   status: "sent" | "delivered" | "read" | "sending" | "failed" | "received";
+  delivered_timestamp: string | null;
+  read_timestamp: string | null;
   conversation_id: string | null;
+}
+
+// Chat data structure
+export interface ChatData {
+  messages: Message[];
+  unread?: number; // Optional, defaults to 0
 }
 
 // Re-export time utilities for easier access
@@ -62,4 +70,5 @@ export {
   formatLastSeenIST,
   getCurrentISTTimestamp,
   convertToIST,
+  formatMessageDateIST,
 } from "./timeUtils";

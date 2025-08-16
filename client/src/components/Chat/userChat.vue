@@ -33,62 +33,76 @@
           Start chatting with {{ props.chatUser.full_name }}!
         </div>
 
-        <!-- Messages -->
-        <div
-          v-for="message in messages"
-          :key="message.client_msg_id"
-          class="mb-4"
-        >
+        <!-- Messages grouped by date -->
+        <div v-for="group in groupedMessages" :key="group.date">
+          <!-- Date separator -->
+          <div class="flex items-center justify-center my-4">
+            <div class="flex-grow border-t border-gray-300"></div>
+            <span
+              class="mx-4 text-xs text-gray-500 bg-white px-2 py-1 rounded-full border border-gray-300"
+            >
+              {{ group.date }}
+            </span>
+            <div class="flex-grow border-t border-gray-300"></div>
+          </div>
+
+          <!-- Messages for this date -->
           <div
-            :class="
-              message.from === user?.id?.toString()
-                ? 'flex justify-end'
-                : 'flex justify-start'
-            "
+            v-for="message in group.messages"
+            :key="message.client_msg_id"
+            class="mb-4"
           >
             <div
               :class="
                 message.from === user?.id?.toString()
-                  ? 'bg-blue-500 text-white max-w-xs lg:max-w-md px-4 py-2 rounded-lg'
-                  : 'bg-gray-200 text-gray-800 max-w-xs lg:max-w-md px-4 py-2 rounded-lg'
+                  ? 'flex justify-end'
+                  : 'flex justify-start'
               "
             >
-              <p class="text-sm">{{ message.content }}</p>
               <div
-                v-if="message.status !== 'sending'"
-                class="flex items-center justify-between mt-1"
+                :class="
+                  message.from === user?.id?.toString()
+                    ? 'bg-blue-500 text-white max-w-xs lg:max-w-md px-4 py-2 rounded-lg'
+                    : 'bg-gray-200 text-gray-800 max-w-xs lg:max-w-md px-4 py-2 rounded-lg'
+                "
               >
-                <span class="text-xs opacity-70">{{
-                  formatMessageTime(message.timestamp)
-                }}</span>
+                <p class="text-sm">{{ message.content }}</p>
                 <div
-                  v-if="message.from === user?.id?.toString()"
-                  class="flex items-center ml-2"
+                  v-if="message.status !== 'sending'"
+                  class="flex items-center justify-between mt-1"
                 >
-                  <!-- Single tick (sent) -->
-                  <span
-                    v-if="message.status === 'sent'"
-                    class="text-xs opacity-70"
-                    >✓</span
+                  <span class="text-xs opacity-70">{{
+                    formatMessageTime(message.timestamp)
+                  }}</span>
+                  <div
+                    v-if="message.from === user?.id?.toString()"
+                    class="flex items-center ml-2"
                   >
-                  <!-- Double tick (delivered) -->
-                  <span
-                    v-else-if="message.status === 'delivered'"
-                    class="text-xs opacity-70"
-                    >✓✓</span
-                  >
-                  <!-- Double tick blue (read) -->
-                  <span
-                    v-else-if="message.status === 'read'"
-                    class="text-xs text-blue-300"
-                    >✓✓</span
-                  >
-                  <!-- Failed status -->
-                  <span
-                    v-else-if="message.status === 'failed'"
-                    class="text-xs text-red-500"
-                    >⚠</span
-                  >
+                    <!-- Single tick (sent) -->
+                    <span
+                      v-if="message.status === 'sent'"
+                      class="text-xs opacity-70"
+                      >✓</span
+                    >
+                    <!-- Double tick (delivered) -->
+                    <span
+                      v-else-if="message.status === 'delivered'"
+                      class="text-xs opacity-70"
+                      >✓✓</span
+                    >
+                    <!-- Double tick blue (read) -->
+                    <span
+                      v-else-if="message.status === 'read'"
+                      class="text-xs text-green-400"
+                      >✓✓</span
+                    >
+                    <!-- Failed status -->
+                    <span
+                      v-else-if="message.status === 'failed'"
+                      class="text-xs text-red-500"
+                      >⚠</span
+                    >
+                  </div>
                 </div>
               </div>
             </div>
@@ -123,8 +137,12 @@
 import { useActionStore } from "../../stores/actionStore";
 import { FwbAvatar } from "flowbite-vue";
 import type { Match, Message } from "../../utils/types";
-import { formatMessageTimeIST, formatLastSeenIST } from "../../utils/types";
-import { onMounted, onUnmounted, ref, computed, nextTick } from "vue";
+import {
+  formatMessageTimeIST,
+  formatLastSeenIST,
+  formatMessageDateIST,
+} from "../../utils/types";
+import { onMounted, onUnmounted, ref, computed, nextTick, watch } from "vue";
 import { nanoid } from "nanoid";
 
 import { useChatStore } from "../../stores/chatStore";
@@ -151,6 +169,47 @@ const messages = computed(() => {
   if (!userId || !props.chatUser) return [];
   return chatStore.getUserMessages(props.chatUser.user_id);
 });
+
+// Watch for new messages and auto-scroll to bottom
+watch(
+  () => messages.value.length,
+  (newLength, oldLength) => {
+    // Only scroll if new messages were added (not on initial load)
+    if (oldLength !== undefined && newLength > oldLength) {
+      nextTick(() => {
+        scrollToBottom();
+      });
+    }
+  },
+  { immediate: false }
+);
+
+// Group messages by date
+const groupedMessages = computed(() => {
+  const groups: { [date: string]: Message[] } = {};
+
+  messages.value.forEach((message) => {
+    const dateKey = formatMessageDateIST(message.timestamp);
+    if (!groups[dateKey]) {
+      groups[dateKey] = [];
+    }
+    groups[dateKey].push(message);
+  });
+
+  // Convert to array and sort by date
+  return Object.entries(groups)
+    .map(([date, msgs]) => ({
+      date,
+      messages: msgs,
+    }))
+    .sort((a, b) => {
+      // Sort by the first message timestamp in each group
+      const aTime = new Date(a.messages[0]?.timestamp || 0).getTime();
+      const bTime = new Date(b.messages[0]?.timestamp || 0).getTime();
+      return aTime - bTime;
+    });
+});
+
 const messagesContainer = ref<HTMLElement | null>(null);
 
 // Reactive timer for updating last seen
@@ -175,6 +234,8 @@ const sendMessage = () => {
     timestamp: new Date().toISOString(),
     status: "sending",
     conversation_id: null,
+    delivered_timestamp: null,
+    read_timestamp: null,
   };
 
   // Add message to local state
@@ -188,7 +249,7 @@ const sendMessage = () => {
     client_msg_id: clientMsgId,
   };
 
-  console.log("Sending message via WebSocket:", wsMessage);
+  //console.log("Sending message via WebSocket:", wsMessage);
 
   ws.value.send(JSON.stringify(wsMessage));
 
@@ -210,6 +271,7 @@ const scrollToBottom = () => {
 
 // Function to format last seen time in IST
 const formatLastSeen = (lastSeen: string) => {
+  //console.log("Formatting last seen time:", lastSeen);
   return formatLastSeenIST(lastSeen);
 };
 
@@ -246,6 +308,9 @@ const formattedLastSeen = computed(() => {
 
 onMounted(() => {
   // Send get_status message to server when component mounts
+
+  chatStore.setOpenedChat(props.chatUser.user_id);
+
   if (ws.value && user.value && props.chatUser) {
     const statusMessage = {
       from: user.value.id,
@@ -258,11 +323,13 @@ onMounted(() => {
 
   // Start the timer for updating last seen
   startLastSeenTimer();
+  scrollToBottom();
 });
 
 onUnmounted(() => {
-  // Clean up timer when component is destroyed
   stopLastSeenTimer();
+  chatStore.resetOpenedChat();
+  //console.log("Cleaning up userChat component");
 });
 </script>
 

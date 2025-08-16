@@ -26,7 +26,7 @@
       </template>
 
       <template v-else>
-        <userChat :chatUser="chatUser" />
+        <userChat :chatUser="chatUser" :key="chatUser.user_id" />
       </template>
     </div>
   </div>

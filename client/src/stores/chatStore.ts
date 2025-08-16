@@ -2,19 +2,26 @@ import { defineStore, storeToRefs } from "pinia";
 import { ref } from "vue";
 import { useUserStore } from "./user";
 import { useActionStore } from "./actionStore";
-import type { UserStatus } from "../utils/types";
+import type { UserStatus, ChatData } from "../utils/types";
 import type { Message } from "../utils/types";
 
 export const useChatStore = defineStore("chat", () => {
   const ws = ref<WebSocket | null>(null);
   const pingInterval = ref<number | null>(null);
   const reconnectTimeout = ref<number | null>(null);
-
-  const userMessages = ref<Record<number, Message[]>>({});
-
+  const openedChat = ref<number | null>(null);
+  const userMessages = ref<Record<number, ChatData>>({});
   const userStatus = ref<UserStatus | null>(null);
   const actionStore = useActionStore();
   const { chatUser } = storeToRefs(actionStore);
+
+  const setOpenedChat = (userId: number | null) => {
+    openedChat.value = userId;
+  };
+
+  const resetOpenedChat = () => {
+    openedChat.value = null;
+  };
 
   const connectWebSocket = (userId: number | undefined) => {
     const userStore = useUserStore();
@@ -67,20 +74,24 @@ export const useChatStore = defineStore("chat", () => {
           const clientMsgId = data.client_msg_id;
           const timestamp = data.timestamp;
 
-          // Get messages array for the recipient user
-          const messages = userMessages.value[toUserId];
-          if (messages) {
+          // Get chat data for the recipient user
+          const chatData = userMessages.value[toUserId];
+          if (chatData && chatData.messages) {
             // Find message by client_msg_id and update it
-            const messageIndex = messages.findIndex(
+            const messageIndex = chatData.messages.findIndex(
               (msg) => msg.client_msg_id === clientMsgId
             );
             if (messageIndex !== -1) {
-              messages[messageIndex].timestamp = timestamp;
-              messages[messageIndex].status =
+              if (data.type === "message_sent") {
+                chatData.messages[messageIndex].timestamp = timestamp;
+              } else if (data.type === "message_delivered") {
+                chatData.messages[messageIndex].delivered_timestamp = timestamp;
+              }
+              chatData.messages[messageIndex].status =
                 data.type === "message_sent" ? "sent" : "delivered";
               console.log(
                 "Message status updated to sent:",
-                messages[messageIndex]
+                chatData.messages[messageIndex]
               );
             }
           }
@@ -93,11 +104,37 @@ export const useChatStore = defineStore("chat", () => {
             timestamp: data.timestamp,
             status: "received",
             conversation_id: data.conversation_id || null,
+            delivered_timestamp: null,
+            read_timestamp: null,
           };
 
           // Add the message to the user's messages
           addUserMessage(parseInt(data.from), message);
           console.log("Message received and added:", message);
+        } else if (data.type === "delivery") {
+          const userId = data.user_id;
+          const deliveryData = data.delivery;
+
+          // Get chat data for the user
+          const chatData = userMessages.value[userId];
+          if (chatData && chatData.messages) {
+            // Iterate through messages and update delivery status
+            chatData.messages.forEach((message) => {
+              if (
+                message.client_msg_id &&
+                deliveryData[message.client_msg_id]
+              ) {
+                message.delivered_timestamp =
+                  deliveryData[message.client_msg_id];
+                message.status = "delivered";
+              }
+            });
+            console.log(
+              `Updated delivery status for ${
+                Object.keys(deliveryData).length
+              } messages for user ${userId}`
+            );
+          }
         }
       } catch (err) {
         console.error("Invalid message format from server:", event.data);
@@ -144,15 +181,18 @@ export const useChatStore = defineStore("chat", () => {
   };
 
   const getUserMessages = (userId: number) => {
-    return userMessages.value[userId] || [];
+    return userMessages.value[userId]?.messages || [];
   };
 
   const addUserMessage = (userId: number, message: Message) => {
     if (!userMessages.value[userId]) {
-      userMessages.value[userId] = [];
+      userMessages.value[userId] = {
+        messages: [],
+        unread: 0,
+      };
     }
 
-    const messages = userMessages.value[userId];
+    const messages = userMessages.value[userId].messages;
     const messageTime = new Date(message.timestamp).getTime();
 
     // Optimize for the common case: most messages arrive in order
@@ -162,6 +202,12 @@ export const useChatStore = defineStore("chat", () => {
     ) {
       // O(1) - Just append to end (most common case)
       messages.push(message);
+
+      // Increment unread count if it's a received message
+      if (message.status === "received") {
+        userMessages.value[userId].unread =
+          (userMessages.value[userId].unread || 0) + 1;
+      }
       return;
     }
 
@@ -182,6 +228,12 @@ export const useChatStore = defineStore("chat", () => {
 
     // Insert at the correct position
     messages.splice(left, 0, message);
+
+    // Increment unread count if it's a received message
+    if (message.status === "received") {
+      userMessages.value[userId].unread =
+        (userMessages.value[userId].unread || 0) + 1;
+    }
   };
 
   const loadUserMessages = async (userId: number) => {
@@ -192,19 +244,69 @@ export const useChatStore = defineStore("chat", () => {
     };
 
     try {
-      userMessages.value = await getChats();
+      const messages = await getChats();
+      // Convert old format to new format if needed
+      userMessages.value = Object.keys(messages).reduce((acc, key) => {
+        const numKey = parseInt(key);
+        if (Array.isArray(messages[numKey])) {
+          // Old format: convert array to ChatData
+          acc[numKey] = {
+            messages: messages[numKey],
+            unread: 0, // Initialize unread count to default 0
+          };
+        } else {
+          // New format: already ChatData, ensure unread has default value
+          acc[numKey] = {
+            ...messages[numKey],
+            unread: messages[numKey].unread || 0, // Default to 0 if undefined
+          };
+        }
+        return acc;
+      }, {} as Record<number, ChatData>);
     } catch (error) {
       console.error("Error loading user messages:", error);
     }
+  };
+
+  const getUnreadCount = (userId: number): number => {
+    return userMessages.value[userId]?.unread || 0;
+  };
+
+  const markMessagesAsRead = (userId: number) => {
+    if (userMessages.value[userId]) {
+      userMessages.value[userId].unread = 0;
+    }
+  };
+
+  const getTotalUnreadCount = (): number => {
+    return Object.values(userMessages.value).reduce((total, chatData) => {
+      return total + (chatData.unread || 0);
+    }, 0);
+  };
+
+  const getLastMessageContent = (userId: number): string => {
+    const chatData = userMessages.value[userId];
+    if (!chatData || !chatData.messages || chatData.messages.length === 0) {
+      return "No messages yet";
+    }
+    const lastMessage = chatData.messages[chatData.messages.length - 1];
+    return lastMessage.content || "No content";
   };
 
   return {
     ws,
     userStatus,
     userMessages,
+    openedChat,
     connectWebSocket,
     getUserMessages,
     addUserMessage,
     loadUserMessages,
+    getUnreadCount,
+    markMessagesAsRead,
+    getTotalUnreadCount,
+    getLastMessageContent,
+    resetOpenedChat,
+    setOpenedChat,
   };
 });

@@ -1,7 +1,7 @@
 import { poolChat } from "../db/postGresChat";
 import { Request, Response } from "express";
 import { getMatchedUserProfiles } from "./feedController";
-
+import { redis } from "../db/redisClient";
 export interface Message {
   client_msg_id: string;
   from: string;
@@ -10,6 +10,14 @@ export interface Message {
   timestamp: string;
   status: "sent" | "delivered" | "read" | "sending" | "failed" | "received";
   conversation_id: string | null;
+  read_timestamp?: string | null;
+  delivered_timestamp?: string | null;
+  created_at?: string;
+}
+
+export interface ChatData {
+  messages: Message[];
+  unread?: number; // Optional, defaults to 0
 }
 
 export async function getMatchedUsersMessages(req: Request, res: Response) {
@@ -22,6 +30,9 @@ export async function getMatchedUsersMessages(req: Request, res: Response) {
   try {
     // Get matched user IDs and filter out the current user
     const matchedProfiles = await getMatchedUserProfiles(userId);
+    const userCameOnlineTime = new Date(
+      Date.now() - 5.5 * 60 * 60 * 1000
+    ).toISOString();
     const matchedUserIds = matchedProfiles
       .map((profile) => profile.user_id)
       .filter((matchedUserId) => matchedUserId !== userId);
@@ -33,24 +44,24 @@ export async function getMatchedUsersMessages(req: Request, res: Response) {
     }
 
     // Create the result object
-    const result: { [key: number]: Message[] } = {};
+    const result: { [key: number]: ChatData } = {};
 
-    // Fetch last 30 messages for each matched user conversation
+    // Fetch ALL unread messages + 30 older messages for each conversation
     const query = `
-      WITH ranked_messages AS (
+      WITH unread_messages AS (
         SELECT 
-          m.id,
-          m.conversation_id,
-          m.client_msg_id,
-          m.from_user_id,
-          m.to_user_id,
-          m.content,
-          m.content_type,
-          m.status,
-          m.created_at,
-          m.delivered_at,
-          m.read_at,
-          m.metadata,
+          m.*,
+          'unread' as message_type
+        FROM messages m
+        WHERE 
+          m.to_user_id = $1 
+          AND m.from_user_id = ANY($2::bigint[])
+          AND m.read_at IS NULL
+      ),
+      older_messages AS (
+        SELECT 
+          m.*,
+          'older' as message_type,
           ROW_NUMBER() OVER (
             PARTITION BY 
               CASE 
@@ -58,40 +69,70 @@ export async function getMatchedUsersMessages(req: Request, res: Response) {
                 ELSE m.from_user_id 
               END 
             ORDER BY m.created_at DESC
-          ) as rn
+          ) as rn_older
         FROM messages m
         WHERE 
-          (m.from_user_id = $1 AND m.to_user_id = ANY($2::bigint[])) OR
-          (m.from_user_id = ANY($2::bigint[]) AND m.to_user_id = $1)
+          ((m.from_user_id = $1 AND m.to_user_id = ANY($2::bigint[])) OR
+           (m.from_user_id = ANY($2::bigint[]) AND m.to_user_id = $1))
+          AND (m.to_user_id != $1 OR m.read_at IS NOT NULL)
+      ),
+      unread_counts AS (
+        SELECT 
+          from_user_id as other_user_id,
+          COUNT(*) as unread_count
+        FROM messages 
+        WHERE 
+          from_user_id = ANY($2::bigint[]) 
+          AND to_user_id = $1 
+          AND read_at IS NULL
+        GROUP BY from_user_id
+      ),
+      combined_messages AS (
+        SELECT 
+          id, conversation_id, client_msg_id, from_user_id, to_user_id,
+          content, content_type, status, created_at, delivered_at, read_at, metadata,
+          message_type
+        FROM unread_messages
+        UNION ALL
+        SELECT 
+          id, conversation_id, client_msg_id, from_user_id, to_user_id,
+          content, content_type, status, created_at, delivered_at, read_at, metadata,
+          message_type
+        FROM older_messages 
+        WHERE rn_older <= 30
       )
-      SELECT * FROM ranked_messages 
-      WHERE rn <= 30
+      SELECT 
+        cm.*,
+        COALESCE(uc.unread_count, 0) as unread_count
+      FROM combined_messages cm
+      LEFT JOIN unread_counts uc ON (
+        CASE 
+          WHEN cm.from_user_id = $1 THEN cm.to_user_id 
+          ELSE cm.from_user_id 
+        END = uc.other_user_id
+      )
       ORDER BY 
         CASE 
-          WHEN from_user_id = $1 THEN to_user_id 
-          ELSE from_user_id 
+          WHEN cm.from_user_id = $1 THEN cm.to_user_id 
+          ELSE cm.from_user_id 
         END,
-        created_at ASC
+        cm.created_at ASC
     `;
 
     const queryResult = await poolChat.query(query, [userId, matchedUserIds]);
 
     console.log(`Found ${queryResult.rows.length} messages for user ${userId}`);
 
-    // Group messages by conversation partner and collect all messages
-    const messagesByUser: { [key: number]: any[] } = {};
+    // Group messages by conversation partner
+    const messagesByUser: {
+      [key: number]: { messages: any[]; unreadCount: number };
+    } = {};
 
     queryResult.rows.forEach((row) => {
       const isFromCurrentUser = parseInt(row.from_user_id) === userId;
       const otherUserId = isFromCurrentUser
         ? parseInt(row.to_user_id)
         : parseInt(row.from_user_id);
-
-      console.log(
-        `Message: ${row.from_user_id} -> ${
-          row.to_user_id
-        }, otherUserId: ${otherUserId}, isFromCurrentUser: ${isFromCurrentUser}, userId: ${userId}, types: ${typeof row.from_user_id}, ${typeof userId}`
-      );
 
       // Skip if somehow the otherUserId is the current user (data consistency check)
       if (otherUserId === userId) {
@@ -101,35 +142,34 @@ export async function getMatchedUsersMessages(req: Request, res: Response) {
         return;
       }
 
-      // Initialize array if it doesn't exist
+      // Initialize object if it doesn't exist
       if (!messagesByUser[otherUserId]) {
-        messagesByUser[otherUserId] = [];
+        messagesByUser[otherUserId] = {
+          messages: [],
+          unreadCount: parseInt(row.unread_count) || 0,
+        };
       }
 
-      // Add the raw message data to process later
-      messagesByUser[otherUserId].push(row);
+      // Add the message
+      messagesByUser[otherUserId].messages.push(row);
     });
 
-    // Process and sort messages for each conversation
+    // Process messages for each conversation (no need to sort as query already orders them)
     Object.keys(messagesByUser).forEach((userIdStr) => {
       const otherUserId = parseInt(userIdStr);
-      const messages = messagesByUser[otherUserId];
-
-      // Sort messages by timestamp (chronological order)
-      messages.sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
+      const { messages, unreadCount } = messagesByUser[otherUserId];
 
       // Convert to Message format
-      result[otherUserId] = messages.map((row) => {
+      const formattedMessages: Message[] = messages.map((row) => {
         const isFromCurrentUser = parseInt(row.from_user_id) === userId;
 
         // Determine status based on your logic
         let status: Message["status"];
         if (isFromCurrentUser) {
           // Message sent by current user (101 -> 104)
-          if (row.delivered_at) {
+          if (row.read_at) {
+            status = "read";
+          } else if (row.delivered_at) {
             status = "delivered";
           } else {
             status = "sent";
@@ -144,18 +184,111 @@ export async function getMatchedUsersMessages(req: Request, res: Response) {
           from: row.from_user_id.toString(),
           to: row.to_user_id.toString(),
           content: row.content || "",
-          timestamp: row.created_at.toISOString(),
+          timestamp: row.created_at,
           status: status,
           conversation_id: row.conversation_id
             ? row.conversation_id.toString()
             : null,
+          // Add timestamp fields for all messages except received
+          ...(status !== "received"
+            ? {
+                read_timestamp: row.read_at || null,
+                delivered_timestamp: row.delivered_at || null,
+              }
+            : {
+                read_timestamp: null,
+                delivered_timestamp: row.delivered_at || userCameOnlineTime,
+              }),
         };
       });
+
+      // Create ChatData object with pre-calculated unread count
+      result[otherUserId] = {
+        messages: formattedMessages,
+        unread: unreadCount,
+      };
     });
 
     res.status(200).json(result);
+    seperateThreadExecution(userId, matchedUserIds);
   } catch (error) {
     console.error("Error fetching matched users messages:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+export const updateDeliveredStatus = async (
+  sender_user_id: number,
+  receiver_user_id: number
+) => {
+  try {
+    // Initialize current timestamp for delivery (UTC)
+    const deliveredTime = new Date().toISOString();
+
+    // Update all undelivered messages FROM sender TO receiver
+    // (messages that receiver is now viewing, so sender gets double ticks)
+    const updateQuery = `
+      UPDATE messages 
+      SET 
+        delivered_at = $3,
+        status = 'delivered'
+      WHERE 
+        from_user_id = $1 
+        AND to_user_id = $2 
+        AND delivered_at IS NULL
+      RETURNING 
+        id,
+        client_msg_id,
+        created_at,
+        delivered_at
+    `;
+
+    const result = await poolChat.query(updateQuery, [
+      sender_user_id,
+      receiver_user_id,
+      deliveredTime,
+    ]);
+
+    console.log(
+      `Updated ${result.rows.length} messages to delivered status from user ${sender_user_id} to user ${receiver_user_id}`
+    );
+
+    if (result.rows.length === 0) {
+      console.log(
+        `No undelivered messages found from user ${sender_user_id} to user ${receiver_user_id}`
+      );
+      return {};
+    }
+    return {
+      sender_user_id: sender_user_id,
+      receiver_user_id: receiver_user_id,
+      delivery: result.rows.map((row) => ({
+        receiver_user_id: receiver_user_id,
+        id: row.client_msg_id,
+        delivered_at: new Date(
+          row.delivered_at.getTime() + 5.5 * 60 * 60 * 1000
+        ).toISOString(),
+      })),
+    };
+  } catch (error) {
+    console.error("Error updating message status:", error);
+    throw error;
+  }
+};
+
+const seperateThreadExecution = async (
+  userId: number,
+  matchedUserIds: number[]
+) => {
+  matchedUserIds.forEach(async (matchedUserId) => {
+    const data = await updateDeliveredStatus(matchedUserId, userId);
+    console.log("Delivery status updated:", data, userId, matchedUserId);
+    //stringify the data and add it into redis stream
+    if (Object.keys(data).length > 0) {
+      await redis.xAdd("delivery_stream", "*", {
+        data: JSON.stringify(data),
+        type: "delivery",
+      });
+    }
+  });
+};

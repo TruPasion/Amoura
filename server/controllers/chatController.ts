@@ -284,7 +284,8 @@ const seperateThreadExecution = async (
     const data = await updateDeliveredStatus(matchedUserId, userId);
     console.log("Delivery status updated:", data, userId, matchedUserId);
     //stringify the data and add it into redis stream
-    if (Object.keys(data).length > 0) {
+    if (data && data.delivery && data.delivery.length > 0) {
+      console.log("Adding delivery data to redis stream:", data);
       await redis.xAdd("delivery_stream", "*", {
         data: JSON.stringify(data),
         type: "delivery",

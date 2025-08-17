@@ -38,15 +38,15 @@
                   {{ match.full_name }}
                 </h1>
                 <p class="text-sm text-gray-500 truncate">
-                  {{ chatStore.getLastMessageContent(match.user_id) }}
+                  {{ getLastMessageContent(match.user_id) }}
                 </p>
               </div>
               <div class="flex flex-col items-end gap-1 flex-shrink-0">
                 <div
-                  v-if="chatStore.getUnreadCount(match.user_id) > 0"
+                  v-if="getUnreadCount(match.user_id) > 0"
                   class="bg-green-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 font-medium"
                 >
-                  {{ chatStore.getUnreadCount(match.user_id) }}
+                  {{ getUnreadCount(match.user_id) }}
                 </div>
               </div>
             </div>
@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, computed } from "vue";
 import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";
@@ -76,6 +76,21 @@ const props = defineProps<{
 }>();
 
 const { matches, chatUser } = storeToRefs(actionStore);
+const { userMessages } = storeToRefs(chatStore);
+
+// Computed helpers for reactivity
+const getUnreadCount = computed(() => (userId: number) => {
+  return userMessages.value[userId]?.unread || 0;
+});
+
+const getLastMessageContent = computed(() => (userId: number) => {
+  const chatData = userMessages.value[userId];
+  if (!chatData || !chatData.messages || chatData.messages.length === 0) {
+    return "No messages yet";
+  }
+  const lastMessage = chatData.messages[chatData.messages.length - 1];
+  return lastMessage.content || "No content";
+});
 
 onMounted(async () => {
   if (user.value && user.value.id) {

@@ -17,6 +17,9 @@ export const useChatStore = defineStore("chat", () => {
 
   const setOpenedChat = (userId: number | null) => {
     openedChat.value = userId;
+    if (userId !== null) {
+      userMessages.value[userId].unread = 0; // Reset unread count when opening chat
+    }
   };
 
   const resetOpenedChat = () => {
@@ -122,7 +125,8 @@ export const useChatStore = defineStore("chat", () => {
             chatData.messages.forEach((message) => {
               if (
                 message.client_msg_id &&
-                deliveryData[message.client_msg_id]
+                deliveryData[message.client_msg_id] &&
+                message.status !== "read"
               ) {
                 message.delivered_timestamp =
                   deliveryData[message.client_msg_id];
@@ -132,6 +136,26 @@ export const useChatStore = defineStore("chat", () => {
             console.log(
               `Updated delivery status for ${
                 Object.keys(deliveryData).length
+              } messages for user ${userId}`
+            );
+          }
+        } else if (data.type === "read") {
+          const userId = data.user_id;
+          const readData = data.read;
+
+          // Get chat data for the user
+          const chatData = userMessages.value[userId];
+          if (chatData && chatData.messages) {
+            // Iterate through messages and update read status
+            chatData.messages.forEach((message) => {
+              if (message.client_msg_id && readData[message.client_msg_id]) {
+                message.read_timestamp = readData[message.client_msg_id];
+                message.status = "read";
+              }
+            });
+            console.log(
+              `Updated read status for ${
+                Object.keys(readData).length
               } messages for user ${userId}`
             );
           }
@@ -204,7 +228,7 @@ export const useChatStore = defineStore("chat", () => {
       messages.push(message);
 
       // Increment unread count if it's a received message
-      if (message.status === "received") {
+      if (message.status === "received" && openedChat.value !== userId) {
         userMessages.value[userId].unread =
           (userMessages.value[userId].unread || 0) + 1;
       }

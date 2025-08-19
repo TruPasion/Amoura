@@ -15,6 +15,87 @@ export const useChatStore = defineStore("chat", () => {
   const actionStore = useActionStore();
   const { chatUser } = storeToRefs(actionStore);
 
+  // Single queue for delivery and read events
+  const statusUpdateQueue = ref<any[]>([]);
+
+  // Process delivery events
+  const processDeliveryEvent = (data: any) => {
+    const userId = data.user_id;
+    const deliveryData = data.delivery;
+
+    // Get chat data for the user
+    const chatData = userMessages.value[userId];
+    if (chatData && chatData.messages) {
+      // Iterate through messages and update delivery status
+      chatData.messages.forEach((message) => {
+        if (
+          message.client_msg_id &&
+          deliveryData[message.client_msg_id] &&
+          message.status !== "read"
+        ) {
+          message.delivered_timestamp = deliveryData[message.client_msg_id];
+          message.status = "delivered";
+        }
+      });
+      console.log(
+        `Updated delivery status for ${
+          Object.keys(deliveryData).length
+        } messages for user ${userId}`
+      );
+    }
+  };
+
+  // Process read events
+  const processReadEvent = (data: any) => {
+    const userId = data.user_id;
+    const readData = data.read;
+
+    // Get chat data for the user
+    const chatData = userMessages.value[userId];
+    if (chatData && chatData.messages) {
+      // Iterate through messages and update read status
+      chatData.messages.forEach((message) => {
+        if (message.client_msg_id && readData[message.client_msg_id]) {
+          message.read_timestamp = readData[message.client_msg_id];
+          message.status = "read";
+        }
+      });
+      console.log(
+        `Updated read status for ${
+          Object.keys(readData).length
+        } messages for user ${userId}`
+      );
+    }
+  };
+
+  // Processing flag and queue processor
+  let processingStatusQueue = false;
+
+  const processStatusQueue = async () => {
+    if (processingStatusQueue || statusUpdateQueue.value.length === 0) return;
+
+    processingStatusQueue = true;
+
+    while (statusUpdateQueue.value.length > 0) {
+      const item = statusUpdateQueue.value.shift();
+      if (item) {
+        try {
+          if (item.type === "delivery") {
+            processDeliveryEvent(item);
+          } else if (item.type === "read") {
+            processReadEvent(item);
+          }
+          // Small delay to prevent blocking
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        } catch (error) {
+          console.error("Error processing status update:", error);
+        }
+      }
+    }
+
+    processingStatusQueue = false;
+  };
+
   const setOpenedChat = (userId: number | null) => {
     openedChat.value = userId;
     if (userId !== null) {
@@ -113,52 +194,29 @@ export const useChatStore = defineStore("chat", () => {
 
           // Add the message to the user's messages
           addUserMessage(parseInt(data.from), message);
+
+          if (openedChat.value === parseInt(data.from)) {
+            // Increment unread count if chat is not open
+            ws.value?.send(
+              JSON.stringify({
+                type: "read_client",
+                userId: parseInt(data.to),
+                touserId: parseInt(data.from),
+                client_msg_id: message.client_msg_id,
+                timestamp: new Date().toISOString(),
+              })
+            );
+          }
+
           console.log("Message received and added:", message);
         } else if (data.type === "delivery") {
-          const userId = data.user_id;
-          const deliveryData = data.delivery;
-
-          // Get chat data for the user
-          const chatData = userMessages.value[userId];
-          if (chatData && chatData.messages) {
-            // Iterate through messages and update delivery status
-            chatData.messages.forEach((message) => {
-              if (
-                message.client_msg_id &&
-                deliveryData[message.client_msg_id] &&
-                message.status !== "read"
-              ) {
-                message.delivered_timestamp =
-                  deliveryData[message.client_msg_id];
-                message.status = "delivered";
-              }
-            });
-            console.log(
-              `Updated delivery status for ${
-                Object.keys(deliveryData).length
-              } messages for user ${userId}`
-            );
-          }
+          // Add to queue for processing
+          statusUpdateQueue.value.push(data);
+          processStatusQueue();
         } else if (data.type === "read") {
-          const userId = data.user_id;
-          const readData = data.read;
-
-          // Get chat data for the user
-          const chatData = userMessages.value[userId];
-          if (chatData && chatData.messages) {
-            // Iterate through messages and update read status
-            chatData.messages.forEach((message) => {
-              if (message.client_msg_id && readData[message.client_msg_id]) {
-                message.read_timestamp = readData[message.client_msg_id];
-                message.status = "read";
-              }
-            });
-            console.log(
-              `Updated read status for ${
-                Object.keys(readData).length
-              } messages for user ${userId}`
-            );
-          }
+          // Add to queue for processing
+          statusUpdateQueue.value.push(data);
+          processStatusQueue();
         }
       } catch (err) {
         console.error("Invalid message format from server:", event.data);

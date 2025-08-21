@@ -13,13 +13,29 @@ const routes = [
     component: LandingPage,
   },
   {
+    path: "/terms",
+    component: LandingPage,
+  },
+  {
+    path: "/privacy",
+    component: LandingPage,
+  },
+  {
+    path: "/refund",
+    component: LandingPage,
+  },
+  {
+    path: "/contact",
+    component: LandingPage,
+  },
+  {
     path: "/app",
     component: Home,
   },
   {
     path: "/registration",
     component: Registration,
-  }
+  },
 ];
 
 const router = createRouter({

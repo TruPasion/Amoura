@@ -61,14 +61,19 @@ const checkAndInsertMutualMatches = async (likePairs: [number, number][]) => {
       const user2Name = user2Res.rows[0]?.full_name || "Unknown";
 
       // Push newly created matches to Redis stream with UUID id and usernames
-      await redis.xAdd("match_stream", "*", {
-        id: row.match_id, // UUID string
-        user_id_1: row.user_id_1.toString(),
-        user_id_2: row.user_id_2.toString(),
-        user_name_1: user1Name,
-        user_name_2: user2Name,
-        type: "match",
-      });
+      try {
+        await redis.xAdd("match_stream", "*", {
+          id: row.match_id, // UUID string
+          user_id_1: row.user_id_1.toString(),
+          user_id_2: row.user_id_2.toString(),
+          user_name_1: user1Name,
+          user_name_2: user2Name,
+          type: "match",
+        });
+      } catch (redisErr) {
+        console.error("⚠️  Failed to add match to Redis stream:", redisErr);
+        console.log("📝 Match was still created in database successfully");
+      }
     }
   } catch (err) {
     console.error("Error inserting mutual matches:", err);

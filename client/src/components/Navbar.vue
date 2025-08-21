@@ -1,8 +1,8 @@
 <template>
   <fwb-navbar class="bg-gradient-to-r from-gray-900 via-purple-900 to-gray-900">
     <template #logo>
-      <a
-        href="https://www.amoura.dev"
+      <router-link
+        to="/"
         class="flex items-center space-x-3 hover:opacity-80 transition-opacity"
       >
         <img
@@ -11,7 +11,7 @@
           class="w-8 h-8"
         />
         <span class="font-pacifico text-2xl text-white">Amoura</span>
-      </a>
+      </router-link>
     </template>
     <template #default="{ isShowMenu }">
       <fwb-navbar-collapse :is-show-menu="isShowMenu">
@@ -70,37 +70,47 @@ const handleContactClick = () => {
 
 const handleSignInClick = () => {
   // Try to find the actual Google login button (rendered by Google)
-  const googleButton = document.querySelector('#google-btn div[role="button"]') as HTMLElement;
+  const googleButton = document.querySelector(
+    '#google-btn div[role="button"]'
+  ) as HTMLElement;
   if (googleButton) {
-    console.log('✅ Found Google button, clicking...');
+    console.log("✅ Found Google button, clicking...");
     googleButton.click();
     return;
   }
 
   // Fallback: try to find any clickable element inside google-btn
-  const googleBtnContainer = document.querySelector('#google-btn') as HTMLElement;
+  const googleBtnContainer = document.querySelector(
+    "#google-btn"
+  ) as HTMLElement;
   if (googleBtnContainer) {
-    const clickableElement = googleBtnContainer.querySelector('div, button, span') as HTMLElement;
+    const clickableElement = googleBtnContainer.querySelector(
+      "div, button, span"
+    ) as HTMLElement;
     if (clickableElement) {
-      console.log('✅ Found clickable element in Google container, clicking...');
+      console.log(
+        "✅ Found clickable element in Google container, clicking..."
+      );
       clickableElement.click();
       return;
     }
   }
 
   // Last fallback: try to find the wrapper and trigger click on it
-  const googleLoginWrapper = document.querySelector('.google-login-button') as HTMLElement;
+  const googleLoginWrapper = document.querySelector(
+    ".google-login-button"
+  ) as HTMLElement;
   if (googleLoginWrapper) {
-    console.log('✅ Found Google login wrapper, clicking...');
+    console.log("✅ Found Google login wrapper, clicking...");
     googleLoginWrapper.click();
     return;
   }
 
   // If nothing found, scroll to the Google login section
-  console.log('⚠️ No Google button found, scrolling to login section...');
-  const googleLoginSection = document.querySelector('#main-content');
+  console.log("⚠️ No Google button found, scrolling to login section...");
+  const googleLoginSection = document.querySelector("#main-content");
   if (googleLoginSection) {
-    googleLoginSection.scrollIntoView({ behavior: 'smooth' });
+    googleLoginSection.scrollIntoView({ behavior: "smooth" });
   }
 };
 </script>

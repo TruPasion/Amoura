@@ -296,10 +296,20 @@ const seperateThreadExecution = async (
     //stringify the data and add it into redis stream
     if (data && data.delivery && data.delivery.length > 0) {
       console.log("Adding delivery data to redis stream:", data);
-      await redis.xAdd("delivery_stream", "*", {
-        data: JSON.stringify(data),
-        type: "delivery",
-      });
+      try {
+        await redis.xAdd("delivery_stream", "*", {
+          data: JSON.stringify(data),
+          type: "delivery",
+        });
+      } catch (redisErr) {
+        console.error(
+          "⚠️  Failed to add delivery data to Redis stream:",
+          redisErr
+        );
+        console.log(
+          "📝 Delivery status was still updated in database successfully"
+        );
+      }
     }
   });
 };

@@ -25,7 +25,7 @@ const routes = [
     component: LandingPage,
   },
   {
-    path: "/contact",
+    path: "/userguide",
     component: LandingPage,
   },
   {

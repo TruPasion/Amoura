@@ -4,6 +4,8 @@ import App from "./App.vue";
 import router from "./router";
 // ✅ Core Tailwind + Flowbite styles
 import "./assets/main.css";
+// ✅ Custom styles including beautiful scrollbars
+import "./style.css";
 import "flowbite";
 
 // ✅ Import Flowbite Vue components

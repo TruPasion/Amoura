@@ -14,12 +14,12 @@
               alt="Amoura Logo"
               class="w-8 h-8"
             />
-            <a
-              href="https://www.amoura.dev"
+            <router-link
+              to="/"
               class="font-pacifico text-white text-2xl hover:text-yellow-400 transition-colors"
             >
               Amoura
-            </a>
+            </router-link>
           </div>
           <div class="text-center">
             <p class="text-gray-300 text-lg mb-4 leading-relaxed font-light">
@@ -48,30 +48,34 @@
             Compliances
           </h3>
           <div class="flex flex-col space-y-2">
-            <router-link
-              to="/terms"
+            <a
+              @click.prevent="$emit('navigate', '/terms')"
+              href="#"
               class="text-gray-300 hover:text-yellow-400 cursor-pointer py-1 text-left font-medium hover:translate-x-1 transform transition-all duration-200"
             >
               Terms & Conditions
-            </router-link>
-            <router-link
-              to="/privacy"
+            </a>
+            <a
+              @click.prevent="$emit('navigate', '/privacy')"
+              href="#"
               class="text-gray-300 hover:text-yellow-400 cursor-pointer py-1 text-left font-medium hover:translate-x-1 transform transition-all duration-200"
             >
               Privacy Policy
-            </router-link>
-            <router-link
-              to="/refund"
+            </a>
+            <a
+              @click.prevent="$emit('navigate', '/refund')"
+              href="#"
               class="text-gray-300 hover:text-yellow-400 cursor-pointer py-1 text-left font-medium hover:translate-x-1 transform transition-all duration-200"
             >
               Refund Policy
-            </router-link>
-            <router-link
-              to="/contact"
+            </a>
+            <a
+              @click.prevent="$emit('navigate', '/userguide')"
+              href="#"
               class="text-gray-300 hover:text-yellow-400 cursor-pointer py-1 text-left font-medium hover:translate-x-1 transform transition-all duration-200"
             >
-              Contact
-            </router-link>
+              User Protection & Rights
+            </a>
           </div>
         </div>
 

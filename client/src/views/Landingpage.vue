@@ -8,6 +8,7 @@ import ContactContent from "../components/compliencepages/Contact.vue";
 
 import Navbar from "../components/Navbar.vue";
 import Appfooter from "../components/Appfooter.vue";
+import { useRouter } from "vue-router";
 // import { FwbButton } from "flowbite-vue";
 const isNavbarVisible = ref(true);
 let lastScroll = window.scrollY;
@@ -19,6 +20,15 @@ const handleScroll = () => {
   if (Math.abs(delta) < 5) return;
   isNavbarVisible.value = delta < 0 || currentScroll < 10;
   lastScroll = currentScroll;
+};
+
+const router = useRouter();
+
+const handleFooterNavigate = (path: string) => {
+  // Navigate and scroll to top
+  router.push(path).then(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 };
 
 onMounted(() => {
@@ -103,7 +113,7 @@ onUnmounted(() => {
     <RefundContent v-else-if="$route.path === '/refund'" />
 
     <!-- Contact Content -->
-    <ContactContent v-else-if="$route.path === '/contact'" />
+    <ContactContent v-else-if="$route.path === '/userguide'" />
 
     <!-- Default fallback for other routes -->
     <div
@@ -126,6 +136,6 @@ onUnmounted(() => {
   </div>
 
   <div>
-    <Appfooter />
+    <Appfooter @navigate="handleFooterNavigate" />
   </div>
 </template>

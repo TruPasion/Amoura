@@ -109,7 +109,11 @@ export const useChatStore = defineStore("chat", () => {
 
   const connectWebSocket = (userId: number | undefined) => {
     const userStore = useUserStore();
-    ws.value = new WebSocket("ws://localhost:8000/ws");
+    const wsurl =
+      import.meta.env.wsenv === "production"
+        ? "wss://amoura.dev/ws"
+        : "ws://localhost:8000/ws";
+    ws.value = new WebSocket(wsurl);
 
     ws.value.onopen = () => {
       console.log("✅ WebSocket connected");

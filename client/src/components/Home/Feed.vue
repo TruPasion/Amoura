@@ -12,6 +12,15 @@
       <div class="flex-grow text-center">
         <h1 class="text-5xl font-pacifico text-purple-700">Amoura</h1>
       </div>
+      <!-- Logout Button -->
+      <div class="flex-none mr-4">
+        <button
+          @click="logoutuser"
+          class="btn btn-danger flex items-center gap-2"
+        >
+          <LogOut class="w-5 h-5" /> Logout
+        </button>
+      </div>
     </div>
 
     <!-- Card Section -->
@@ -89,12 +98,14 @@
 </template>
 
 <script setup lang="ts">
-import { ListFilter, Flame, X, Rewind } from "lucide-vue-next";
+import { ListFilter, Flame, X, Rewind, LogOut } from "lucide-vue-next";
 import { onMounted, ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import FilterBox from "./FilterBox.vue";
 
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";
+const router = useRouter();
 const userStore = useUserStore();
 const { nearbyUsers, lastSeenProfile } = storeToRefs(userStore);
 
@@ -126,6 +137,29 @@ const userAction = (action: "send_aura" | "rewind" | "skip") => {
 
 function toggleFilterBox() {
   showFilterBox.value = !showFilterBox.value;
+}
+
+async function logoutuser() {
+  try {
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (response.ok) {
+      // Clear user data from store
+      userStore.user = null;
+      nearbyUsers.value = [];
+      lastSeenProfile.value = null;
+
+      // Redirect to landing page
+      router.push("/");
+    } else {
+      console.error("Logout failed:", await response.text());
+    }
+  } catch (error) {
+    console.error("Error during logout:", error);
+  }
 }
 
 onMounted(async () => {

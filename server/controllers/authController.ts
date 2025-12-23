@@ -137,3 +137,19 @@ export async function getMeHandler(req: Request, res: Response) {
     res.status(401).json({ error: "Invalid token" });
   }
 }
+
+export async function logoutHandler(req: Request, res: Response) {
+  try {
+    // Clear the auth_token cookie
+    res.clearCookie("auth_token", {
+      httpOnly: true,
+      secure: true, // Use this in production with HTTPS
+      sameSite: "strict",
+    });
+
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ error: "Logout failed" });
+  }
+}

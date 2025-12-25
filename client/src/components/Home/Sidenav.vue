@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
+import { useActionStore } from "../../stores/actionStore";
 import Matches from "../user/Matches.vue";
 
-
 const userStore = useUserStore();
+const actionStore = useActionStore();
 
 const props = defineProps<{
   isCollapsed: boolean;
 }>();
+
+const openProfile = () => {
+  actionStore.openUserProfile();
+};
 </script>
-
-
 
 <template>
   <div class="header m-1">
@@ -19,12 +22,17 @@ const props = defineProps<{
       <div
         :class="
           props.isCollapsed
-            ? 'flex items-center justify-center mt-3 bg-gradient-to-r from-gray-50 to-gray-100 shadow-lg rounded-lg p-3 border border-gray-200'
-            : 'flex items-center gap-2 m-3 bg-gradient-to-r from-gray-50 to-gray-100 shadow-lg rounded-lg p-3 border border-gray-200'
+            ? 'flex items-center justify-center mt-3 bg-gradient-to-r from-gray-50 to-gray-100 shadow-lg rounded-lg p-3 border border-gray-200 cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all duration-200'
+            : 'flex items-center gap-2 m-3 bg-gradient-to-r from-gray-50 to-gray-100 shadow-lg rounded-lg p-3 border border-gray-200 cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all duration-200'
         "
+        @click="openProfile"
       >
         <div class="w-12 h-12">
-          <fwb-avatar bordered :img="userStore.user?.profile?.profile_photo" class="rounded-full" />
+          <fwb-avatar
+            bordered
+            :img="userStore.user?.profile?.profile_photo"
+            class="rounded-full"
+          />
         </div>
         <div v-if="!props.isCollapsed" class="m-1.5">
           <h1 class="text-lg font-semibold text-gray-700">
@@ -40,4 +48,3 @@ const props = defineProps<{
     <!-- populate the matches here using the component -->
   </div>
 </template>
-

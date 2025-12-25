@@ -100,9 +100,31 @@ export async function getMeHandler(req: Request, res: Response) {
     }
 
     const userProfile = await pool.query(
-      `SELECT * FROM user_profiles WHERE user_id = $1`,
+      `
+  SELECT 
+    up.*,
+
+    -- primary profile photo
+    MAX(CASE WHEN upp.is_primary = true THEN upp.image_url END) AS profile_photo,
+
+    -- all photos
+    ARRAY_REMOVE(
+      ARRAY_AGG(upp.image_url ORDER BY upp.position),
+      NULL
+    ) AS photos
+
+  FROM user_profiles up
+  LEFT JOIN user_profile_pictures upp
+    ON upp.user_id = up.user_id
+
+  WHERE up.user_id = $1
+
+  GROUP BY up.id
+  `,
       [user.rows[0].id]
     );
+
+    console.log("User profile:", userProfile.rows);
 
     // update location if provided
     // Extract location from body if sent

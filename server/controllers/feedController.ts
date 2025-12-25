@@ -88,22 +88,38 @@ export const getMatchedUserProfiles = async (userId: number) => {
 
   try {
     const query = `
-      WITH matched_users AS (
-        SELECT 
-          CASE 
-            WHEN user_id_1 = $1 THEN user_id_2
-            ELSE user_id_1
-          END AS matched_user_id
-        FROM user_matches
-        WHERE user_id_1 = $1 OR user_id_2 = $1
-      )
-      SELECT 
-        up.user_id,
-        up.full_name,
-        up.profile_photo
-      FROM matched_users mu
-      JOIN user_profiles up ON mu.matched_user_id = up.user_id;
-    `;
+  WITH matched_users AS (
+    SELECT 
+      CASE 
+        WHEN user_id_1 = $1 THEN user_id_2
+        ELSE user_id_1
+      END AS matched_user_id
+    FROM user_matches
+    WHERE user_id_1 = $1 OR user_id_2 = $1
+  )
+  SELECT 
+    up.user_id,
+    up.full_name,
+
+    -- primary photo (same alias as before)
+    MAX(CASE WHEN upp.is_primary = true THEN upp.image_url END) AS profile_photo,
+
+    -- all photos array (includes primary)
+    ARRAY_REMOVE(
+      ARRAY_AGG(upp.image_url ORDER BY upp.position),
+      NULL
+    ) AS photos
+
+  FROM matched_users mu
+  JOIN user_profiles up 
+    ON mu.matched_user_id = up.user_id
+  LEFT JOIN user_profile_pictures upp
+    ON upp.user_id = up.user_id
+
+  GROUP BY 
+    up.user_id,
+    up.full_name
+`;
 
     const result = await client.query(query, [userId]);
     return result.rows;

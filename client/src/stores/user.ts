@@ -181,6 +181,36 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
+  function updateProfilePhoto(photoUrl: string) {
+    if (user.value?.profile) {
+      user.value.profile.profile_photo = photoUrl;
+    }
+  }
+
+  function updatePhotos(photos: string[]) {
+    if (user.value?.profile) {
+      user.value.profile.photos = photos;
+    }
+  }
+
+  function addPhoto(photoUrl: string) {
+    if (user.value?.profile) {
+      if (!user.value.profile.photos) {
+        user.value.profile.photos = [];
+      }
+      user.value.profile.photos.push(photoUrl);
+    }
+  }
+
+  function removePhoto(photoUrl: string) {
+    if (user.value?.profile?.photos) {
+      const index = user.value.profile.photos.indexOf(photoUrl);
+      if (index > -1) {
+        user.value.profile.photos.splice(index, 1);
+      }
+    }
+  }
+
   return {
     user,
     range,
@@ -201,5 +231,9 @@ export const useUserStore = defineStore("user", () => {
     userProfileAction,
     undoUserAction,
     flush,
+    updateProfilePhoto,
+    updatePhotos,
+    addPhoto,
+    removePhoto,
   };
 });

@@ -6,15 +6,27 @@ export const useActionStore = defineStore("actionStore", () => {
   const matches = ref<Match[]>([]);
   const openchat = ref(false);
   const chatUser = ref<Match | null>(null);
+  const openProfile = ref(false);
 
   const openChat = (user: Match | null) => {
     chatUser.value = user;
     openchat.value = true;
+    openProfile.value = false; // Close profile if open
   };
 
   const closeChat = () => {
     chatUser.value = null;
     openchat.value = false;
+  };
+
+  const openUserProfile = () => {
+    openProfile.value = true;
+    openchat.value = false; // Close chat if open
+    chatUser.value = null;
+  };
+
+  const closeUserProfile = () => {
+    openProfile.value = false;
   };
 
   const getMatches = async (userId: number) => {
@@ -33,8 +45,11 @@ export const useActionStore = defineStore("actionStore", () => {
   return {
     chatUser,
     matches,
+    openProfile,
     getMatches,
     openChat,
     closeChat,
+    openUserProfile,
+    closeUserProfile,
   };
 });

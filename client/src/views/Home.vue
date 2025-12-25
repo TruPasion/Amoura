@@ -21,10 +21,12 @@
       class="flex-1 h-full bg-white overflow-auto rounded-lg shadow-lg p-6"
       style="height: 100vh"
     >
-      <template v-if="!chatUser?.user_id">
+      <template v-if="openProfile">
+        <UserProfile />
+      </template>
+      <template v-else-if="!chatUser?.user_id">
         <Feed />
       </template>
-
       <template v-else>
         <userChat :chatUser="chatUser" :key="chatUser.user_id" />
       </template>
@@ -38,9 +40,10 @@ import userChat from "../components/Chat/userChat.vue";
 import Sidenav from "../components/Home/Sidenav.vue";
 import Feed from "../components/Home/Feed.vue";
 import Toaster from "../components/toast/Toaster.vue";
+import UserProfile from "../components/user/UserProfile.vue";
 import { useActionStore } from "../stores/actionStore";
 
-const { chatUser } = storeToRefs(useActionStore());
+const { chatUser, openProfile } = storeToRefs(useActionStore());
 
 const isHovered = ref(false);
 const screenWidth = ref(

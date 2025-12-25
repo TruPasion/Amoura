@@ -43,19 +43,47 @@ export const getNearbyUsers = async (req: Request, res: Response) => {
     p.user_id,
     p.full_name,
     p.gender,
-    p.profile_photo,
+
+    MAX(CASE WHEN upp.is_primary = true THEN upp.image_url END) AS profile_photo,
+
+    ARRAY_REMOVE(
+      ARRAY_AGG(upp.image_url ORDER BY upp.position),
+      NULL
+    ) AS photos,
+
     p.created_at,
     l.latitude,
     l.longitude,
-    ST_Distance(l.location, ST_SetSRID(ST_MakePoint($2, $3), 4326)) AS distance,
+    ST_Distance(
+      l.location,
+      ST_SetSRID(ST_MakePoint($2, $3), 4326)
+    ) AS distance,
     DATE_PART('year', AGE(p.date_of_birth)) AS age
+
   FROM user_locations l
-  JOIN user_profiles p ON l.user_id = p.user_id
+  JOIN user_profiles p 
+    ON l.user_id = p.user_id
+  LEFT JOIN user_profile_pictures upp
+    ON upp.user_id = p.user_id
+
   WHERE ${conditions.join(" AND ")}
     AND NOT EXISTS (
-      SELECT 1 FROM user_seen_profiles s 
-      WHERE s.user_id = $1 AND s.seen_user_id = p.user_id
+      SELECT 1 
+      FROM user_seen_profiles s 
+      WHERE s.user_id = $1 
+        AND s.seen_user_id = p.user_id
     )
+
+  GROUP BY 
+    p.user_id,
+    p.full_name,
+    p.gender,
+    p.date_of_birth,
+    p.created_at,
+    l.latitude,
+    l.longitude,
+    l.location
+
   LIMIT 10
 `;
 

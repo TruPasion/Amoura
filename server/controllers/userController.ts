@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../db/postGres";
+import * as fs from "fs";
+import * as path from "path";
 
 // CREATE user
 export const createUser = async (req: Request, res: Response) => {
@@ -104,24 +106,230 @@ export const createUserProfile = async (req: Request, res: Response) => {
 
     const result = await pool.query(
       `INSERT INTO user_profiles (
-         user_id, full_name, date_of_birth, gender, profile_photo, location_access, latitude, longitude
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         user_id, full_name, date_of_birth, gender, location_access, latitude, longitude
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         user_id,
         full_name,
         date_of_birth,
         gender,
-        profile_photo,
         location_access,
         latitude,
         longitude,
       ]
     );
 
+    // 2️⃣ Insert initial profile photo (if provided)
+    if (profile_photo) {
+      await pool.query(
+        `
+      INSERT INTO user_profile_pictures (
+        user_id,
+        image_url,
+        position,
+        is_primary
+      )
+      VALUES ($1, $2, 1, true);
+      `,
+        [user_id, profile_photo]
+      );
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("Create user profile error:", err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// POST /upload-delta - handle profile photo changes
+export const uploadDelta = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const { user_id } = req.body;
+    const {
+      profile_photo_change,
+      added_photos = [],
+      deleted_photos = [],
+    } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ error: "user_id is required" });
+    }
+
+    await client.query("BEGIN");
+
+    console.log("=== UPLOAD DELTA OPERATION ===");
+    console.log("User ID:", user_id);
+    console.log("Profile photo change:", !!profile_photo_change);
+    console.log("Added photos:", added_photos.length);
+    console.log("Deleted photos:", deleted_photos.length);
+
+    // Step 1: Upload added photos first
+    const uploadedPhotos: any[] = [];
+    for (const photo of added_photos) {
+      if (photo.image_url) {
+        const result = await client.query(
+          `INSERT INTO user_profile_pictures (user_id, image_url, position, is_primary, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+           RETURNING *`,
+          [user_id, photo.image_url, photo.position, photo.is_primary || false]
+        );
+
+        uploadedPhotos.push(result.rows[0]);
+        console.log(
+          `✅ Added photo at position ${photo.position}:`,
+          photo.image_url
+        );
+      }
+    }
+
+    // Step 2: Handle profile photo change (set new primary and update existing)
+    let updatedProfilePhoto = null;
+    if (profile_photo_change && profile_photo_change.image_url) {
+      // First, set all existing photos to non-primary
+      await client.query(
+        `UPDATE user_profile_pictures 
+         SET is_primary = false 
+         WHERE user_id = $1 AND is_primary = true`,
+        [user_id]
+      );
+
+      console.log("✅ Set existing primary photos to non-primary");
+
+      // Check if this is a new image URL or existing one
+      const existingPhoto = await client.query(
+        `SELECT id FROM user_profile_pictures WHERE user_id = $1 AND image_url = $2`,
+        [user_id, profile_photo_change.image_url]
+      );
+
+      if (existingPhoto.rows.length > 0) {
+        // Existing image - just set it as primary
+        const result = await client.query(
+          `UPDATE user_profile_pictures 
+           SET is_primary = true, position = $2, updated_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+           WHERE user_id = $1 AND image_url = $3
+           RETURNING *`,
+          [
+            user_id,
+            profile_photo_change.position || 1,
+            profile_photo_change.image_url,
+          ]
+        );
+
+        if (result.rows.length > 0) {
+          updatedProfilePhoto = result.rows[0];
+          console.log(
+            "✅ Updated existing photo to primary:",
+            profile_photo_change.image_url
+          );
+        }
+      } else {
+        // New image - insert it as primary
+        const result = await client.query(
+          `INSERT INTO user_profile_pictures (user_id, image_url, position, is_primary, created_at, updated_at)
+           VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP AT TIME ZONE 'UTC', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+           RETURNING *`,
+          [
+            user_id,
+            profile_photo_change.image_url,
+            profile_photo_change.position || 1,
+          ]
+        );
+
+        updatedProfilePhoto = result.rows[0];
+        console.log(
+          "✅ Added new primary photo:",
+          profile_photo_change.image_url
+        );
+      }
+    }
+
+    // Step 3: Delete photos (after uploads to avoid edge cases)
+    const deletedPhotoIds: number[] = [];
+    for (const photo of deleted_photos) {
+      if (photo.id && photo.id > 0) {
+        // Get the image URL before deletion for cleanup
+        const photoResult = await client.query(
+          `SELECT image_url FROM user_profile_pictures WHERE id = $1 AND user_id = $2`,
+          [photo.id, user_id]
+        );
+
+        if (photoResult.rows.length > 0) {
+          const imageUrl = photoResult.rows[0].image_url;
+
+          // Delete from database
+          const result = await client.query(
+            `DELETE FROM user_profile_pictures 
+             WHERE id = $1 AND user_id = $2
+             RETURNING id`,
+            [photo.id, user_id]
+          );
+
+          if (result.rows.length > 0) {
+            deletedPhotoIds.push(photo.id);
+
+            // Delete physical file if it's a local upload
+            if (imageUrl && imageUrl.startsWith("/uploads/")) {
+              try {
+                const filePath = path.join(
+                  process.cwd(),
+                  "client",
+                  "public",
+                  imageUrl
+                );
+                if (fs.existsSync(filePath)) {
+                  fs.unlinkSync(filePath);
+                  console.log("🗑️ Deleted file:", filePath);
+                }
+              } catch (fileError) {
+                console.error(
+                  "Warning: Failed to delete file:",
+                  imageUrl,
+                  fileError
+                );
+                // Continue processing - don't fail the entire operation for file cleanup
+              }
+            }
+
+            console.log(`🗑️ Deleted photo ID ${photo.id}:`, imageUrl);
+          }
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+
+    // Return summary of changes
+    const response = {
+      success: true,
+      changes: {
+        uploaded_photos: uploadedPhotos.length,
+        updated_primary_photo: !!updatedProfilePhoto,
+        deleted_photos: deletedPhotoIds.length,
+      },
+      data: {
+        uploaded_photos: uploadedPhotos,
+        updated_profile_photo: updatedProfilePhoto,
+        deleted_photo_ids: deletedPhotoIds,
+      },
+    };
+
+    console.log("✅ Upload delta operation completed successfully");
+    console.log("Response summary:", response.changes);
+    console.log("==============================");
+
+    res.json(response);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("❌ Upload delta error:", err);
+    res.status(500).json({
+      error: "Failed to upload delta changes",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  } finally {
+    client.release();
   }
 };

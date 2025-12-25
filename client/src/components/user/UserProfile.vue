@@ -221,6 +221,38 @@ const handleChanges = (hasChanges: boolean) => {
   console.log("Profile has unsaved changes:", hasChanges);
 };
 
+// Helper function to truncate base64 URLs for cleaner console output
+const truncateBase64InObject = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+
+  if (typeof obj === "string") {
+    // Check if it's a base64 data URL
+    if (obj.startsWith("data:image/") && obj.includes("base64,")) {
+      const [prefix, base64Data] = obj.split("base64,");
+      if (base64Data && base64Data.length > 50) {
+        return `${prefix}base64,${base64Data.substring(0, 50)}...truncated(${
+          base64Data.length
+        } chars)`;
+      }
+    }
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => truncateBase64InObject(item));
+  }
+
+  if (typeof obj === "object") {
+    const truncated: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      truncated[key] = truncateBase64InObject(value);
+    }
+    return truncated;
+  }
+
+  return obj;
+};
+
 const closeProfile = () => {
   if (hasUnsavedChanges.value) {
     pendingCloseAction = () => {
@@ -231,6 +263,67 @@ const closeProfile = () => {
   } else {
     actionStore.openProfile = false;
   }
+};
+
+// Helper function to convert base64 to file and upload
+const uploadBase64AsFile = async (base64Data: string): Promise<string> => {
+  try {
+    // Convert base64 to blob
+    const response = await fetch(base64Data);
+    const blob = await response.blob();
+
+    // Create FormData
+    const formData = new FormData();
+    formData.append("image", blob, "photo.jpg");
+
+    // Upload file
+    const uploadResponse = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Failed to upload image");
+    }
+
+    const result = await uploadResponse.json();
+    return result.fileUrl;
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    throw error;
+  }
+};
+
+// Process delta to upload base64 images first
+const processDeltaWithFileUploads = async (delta: any) => {
+  const processedDelta = { ...delta };
+
+  // Process profile photo change
+  if (
+    processedDelta.profile_photo_change?.image_url?.startsWith("data:image/")
+  ) {
+    console.log("Uploading profile photo...");
+    processedDelta.profile_photo_change.image_url = await uploadBase64AsFile(
+      processedDelta.profile_photo_change.image_url
+    );
+    console.log(
+      "✅ Profile photo uploaded:",
+      processedDelta.profile_photo_change.image_url
+    );
+  }
+
+  // Process added photos
+  if (processedDelta.added_photos?.length > 0) {
+    for (const photo of processedDelta.added_photos) {
+      if (photo.image_url?.startsWith("data:image/")) {
+        console.log(`Uploading added photo at position ${photo.position}...`);
+        photo.image_url = await uploadBase64AsFile(photo.image_url);
+        console.log("✅ Added photo uploaded:", photo.image_url);
+      }
+    }
+  }
+
+  return processedDelta;
 };
 
 // Photo handlers are now managed in PhotoGrid via the store
@@ -245,10 +338,30 @@ const saveProfile = async () => {
     const delta = userStore.saveProfileChanges();
 
     console.log("=== SAVE OPERATION ===");
-    console.log("Saving profile with delta:", delta);
+    console.log("Saving profile with delta:", truncateBase64InObject(delta));
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Process delta to upload files first
+    const processedDelta = await processDeltaWithFileUploads(delta);
+
+    // Call the upload-delta API endpoint
+    const response = await fetch("/api/users/upload-delta", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: user.value?.id,
+        ...processedDelta,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to save profile changes");
+    }
+
+    const result = await response.json();
+    console.log("✅ Profile saved successfully! Response:", result);
 
     // After successful API call, update original data and reset changes
     userStore.updateOriginalData();

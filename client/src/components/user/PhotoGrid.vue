@@ -20,13 +20,16 @@
     <!-- 3x3 Photo Grid -->
     <div class="flex-1 min-h-0 overflow-hidden">
       <div class="grid grid-cols-3 gap-2 md:gap-3 lg:gap-4 h-full w-full">
-        <!-- Profile Photo (First Slot - Cannot be deleted) -->
+        <!-- Profile Photo (First Slot - Primary photo) -->
         <div class="relative group min-h-0">
           <div
             class="aspect-[4/5] rounded-lg overflow-hidden shadow-md w-full h-auto max-h-full border-2 border-purple-300"
           >
             <img
-              :src="user?.profile?.profile_photo"
+              :src="
+                primaryPhoto?.image_url ||
+                user?.profile?.profile_photo?.image_url
+              "
               :alt="user?.profile?.full_name || user?.name || 'User'"
               class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -42,7 +45,7 @@
         <!-- Other Photos with Star to Set as Profile -->
         <div
           v-for="(photo, index) in displayPhotos.slice(0, 8)"
-          :key="photo.id || `photo-${index}`"
+          :key="photo.id"
           class="relative group min-h-0"
         >
           <div
@@ -123,34 +126,61 @@ import { computed, ref, watch } from "vue";
 import { Images, Trash2, Plus, Star } from "lucide-vue-next";
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";
+import type { PhotoObject } from "../../utils/types";
 
-interface Photo {
-  id: string;
+interface DisplayPhoto {
+  id: number;
   url: string;
+  is_primary: boolean;
+  position: number;
   isNew?: boolean;
 }
 
+const emit = defineEmits<{
+  hasChanges: [hasChanges: boolean];
+}>();
+
 const userStore = useUserStore();
-const { user } = storeToRefs(userStore);
+const { user, hasUnsavedChanges } = storeToRefs(userStore);
+
+// Watch for changes and emit to parent
+watch(
+  hasUnsavedChanges,
+  (newValue) => {
+    emit("hasChanges", newValue);
+  },
+  { immediate: true }
+);
 
 const fileInput = ref<HTMLInputElement>();
 
-// Filter out profile photo from photos array and convert to Photo objects for display
-const displayPhotos = computed(() => {
+// Get primary photo (first photo should be the one with is_primary: true)
+const primaryPhoto = computed(() => {
+  if (!user.value?.profile?.photos) return null;
+  return (
+    user.value.profile.photos.find((photo) => photo.is_primary) ||
+    user.value.profile.photos[0]
+  );
+});
+
+// Filter out primary photo from photos array and convert for display
+const displayPhotos = computed((): DisplayPhoto[] => {
   if (!user.value?.profile?.photos) return [];
 
-  const profilePhotoUrl = user.value.profile.profile_photo || "";
   return user.value.profile.photos
-    .filter((url) => url !== profilePhotoUrl) // Filter out profile photo
-    .map((url, index) => ({
-      id: `photo-${index}`,
-      url,
+    .filter((photo) => !photo.is_primary) // Filter out primary photo
+    .sort((a, b) => a.position - b.position) // Sort by position
+    .map((photo) => ({
+      id: photo.id,
+      url: photo.image_url,
+      is_primary: photo.is_primary,
+      position: photo.position,
+      isNew: photo.id < 0, // Negative IDs indicate new photos
     }));
 });
 
 // Calculate available upload slots (max 9 total photos including profile)
 const availableSlots = computed(() => {
-  const totalPhotos = user.value?.profile?.photos?.length || 0;
   return Math.max(0, 8 - displayPhotos.value.length);
 });
 
@@ -185,13 +215,24 @@ const handleFileSelect = (event: Event) => {
   }
 };
 
-const removePhoto = (photo: Photo) => {
-  userStore.removePhoto(photo.url);
+const removePhoto = (photo: DisplayPhoto) => {
+  const photoObject: PhotoObject = {
+    id: photo.id,
+    image_url: photo.url,
+    is_primary: photo.is_primary,
+    position: photo.position,
+  };
+  userStore.removePhoto(photoObject);
 };
 
-const setAsProfilePhoto = (photo: Photo) => {
-  // Just update the profile photo in store
-  userStore.updateProfilePhoto(photo.url);
+const setAsProfilePhoto = (photo: DisplayPhoto) => {
+  const photoObject: PhotoObject = {
+    id: photo.id,
+    image_url: photo.url,
+    is_primary: true,
+    position: 1,
+  };
+  userStore.updateProfilePhoto(photoObject);
 };
 </script>
 

@@ -101,25 +101,43 @@ export async function getMeHandler(req: Request, res: Response) {
 
     const userProfile = await pool.query(
       `
-  SELECT 
+  SELECT
     up.*,
 
-    -- primary profile photo
-    MAX(CASE WHEN upp.is_primary = true THEN upp.image_url END) AS profile_photo,
+    -- primary profile photo (single JSON object)
+    (
+      SELECT JSON_BUILD_OBJECT(
+        'id', upp.id,
+        'image_url', upp.image_url,
+        'is_primary', upp.is_primary,
+        'position', upp.position
+      )
+      FROM user_profile_pictures upp
+      WHERE upp.user_id = up.user_id
+        AND upp.is_primary = true
+      LIMIT 1
+    ) AS profile_photo,
 
-    -- all photos
-    ARRAY_REMOVE(
-      ARRAY_AGG(upp.image_url ORDER BY upp.position),
-      NULL
+    -- all photos (array of JSON objects)
+    COALESCE(
+      (
+        SELECT JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'id', upp.id,
+            'image_url', upp.image_url,
+            'is_primary', upp.is_primary,
+            'position', upp.position
+          )
+          ORDER BY upp.position
+        )
+        FROM user_profile_pictures upp
+        WHERE upp.user_id = up.user_id
+      ),
+      '[]'
     ) AS photos
 
   FROM user_profiles up
-  LEFT JOIN user_profile_pictures upp
-    ON upp.user_id = up.user_id
-
   WHERE up.user_id = $1
-
-  GROUP BY up.id
   `,
       [user.rows[0].id]
     );

@@ -9,7 +9,7 @@
       <div class="flex items-center gap-3 flex-none">
         <fwb-avatar
           bordered
-          :img="user?.profile?.profile_photo"
+          :img="user?.profile?.profile_photo?.image_url"
           class="w-10 h-10 rounded-full"
         />
         <div>
@@ -80,7 +80,7 @@
       <div class="flex h-full">
         <!-- Left Side - Photo Grid -->
         <div class="w-2/5 p-6 border-r border-gray-200">
-          <PhotoGrid />
+          <PhotoGrid @has-changes="handleChanges" />
         </div>
 
         <!-- Right Side - Profile Info -->
@@ -89,7 +89,7 @@
           <div class="flex items-center space-x-6 mb-8">
             <div class="w-24 h-24">
               <img
-                :src="user?.profile?.profile_photo"
+                :src="user?.profile?.profile_photo?.image_url"
                 :alt="user?.profile?.full_name || user?.name"
                 class="w-full h-full rounded-full object-cover shadow-lg border-4 border-purple-200"
               />
@@ -142,12 +142,17 @@ import { Trash2, Save, Loader2, X } from "lucide-vue-next";
 
 const userStore = useUserStore();
 const actionStore = useActionStore();
-const { user } = storeToRefs(userStore);
+const { user, hasUnsavedChanges } = storeToRefs(userStore);
 const { closeUserProfile } = actionStore;
 
 // Local state for managing changes
-const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
+
+const handleChanges = (hasChanges: boolean) => {
+  // This is handled automatically by the store now
+  // but we keep this handler in case we need additional logic
+  console.log("Profile has unsaved changes:", hasChanges);
+};
 
 const closeProfile = () => {
   closeUserProfile();
@@ -161,19 +166,23 @@ const saveProfile = async () => {
   isSaving.value = true;
 
   try {
-    // TODO: Implement API call to save profile changes
-    console.log("Saving profile...");
+    // Call store's save function which logs the delta
+    const delta = userStore.saveProfileChanges();
+
+    console.log("=== SAVE OPERATION ===");
+    console.log("Saving profile with delta:", delta);
 
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // TODO: Update user store with saved data when API is ready
-    // userStore.updateProfile({ ... });
+    // After successful API call, update original data and reset changes
+    userStore.updateOriginalData();
+    userStore.resetChanges();
 
-    hasUnsavedChanges.value = false;
-    console.log("Profile saved successfully!");
+    console.log("✅ Profile saved successfully!");
+    console.log("===================");
   } catch (error) {
-    console.error("Failed to save profile:", error);
+    console.error("❌ Failed to save profile:", error);
   } finally {
     isSaving.value = false;
   }

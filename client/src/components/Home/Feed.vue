@@ -2,7 +2,7 @@
   <div class="feed-container flex flex-col h-full p-4">
     <!-- Filters and Header -->
     <div class="flex items-center mb-4">
-      <div class="filters flex-none relative">
+      <div class="filters flex-none relative z-50">
         <ListFilter
           class="w-6 h-6 text-gray-600 cursor-pointer"
           @click="toggleFilterBox"
@@ -29,13 +29,64 @@
       style="max-height: calc(100vh - 8rem)"
     >
       <template v-if="nearbyUsers.length > 0">
-        <!-- Left Half: Image -->
-        <div class="w-3/5 flex items-center justify-center">
-          <img
-            :src="lastUser?.profile_photo"
-            alt="User Image"
-            class="max-w-full max-h-full object-contain"
-          />
+        <!-- Left Half: Image Carousel -->
+        <div class="w-3/5 flex items-center justify-center relative">
+          <div class="relative w-full h-full flex items-center justify-center">
+            <!-- Main Image -->
+            <img
+              :src="
+                (() => {
+                  const photo = getCurrentPhoto();
+                  return (
+                    (typeof photo === 'string' ? photo : photo?.image_url) ||
+                    lastUser?.profile_photo.image_url
+                  );
+                })()
+              "
+              alt="User Image"
+              class="max-w-full max-h-full object-contain rounded-lg"
+            />
+
+            <!-- Navigation Arrows (only show if multiple photos) -->
+            <template v-if="(lastUser?.photos?.length || 0) > 1">
+              <!-- Left Arrow -->
+              <button
+                v-if="currentPhotoIndex > 0"
+                @click="previousPhoto"
+                class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full transition-all duration-200"
+              >
+                <ChevronLeft class="w-6 h-6" />
+              </button>
+
+              <!-- Right Arrow -->
+              <button
+                v-if="currentPhotoIndex < (lastUser?.photos?.length || 0) - 1"
+                @click="nextPhoto"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full transition-all duration-200"
+              >
+                <ChevronRight class="w-6 h-6" />
+              </button>
+            </template>
+
+            <!-- Dots Navigation (only show if multiple photos) -->
+            <template v-if="(lastUser?.photos?.length || 0) > 1">
+              <div
+                class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2"
+              >
+                <button
+                  v-for="(photo, index) in lastUser?.photos"
+                  :key="photo.id || index"
+                  @click="currentPhotoIndex = index"
+                  class="w-2 h-2 rounded-full transition-all duration-200"
+                  :class="
+                    index === currentPhotoIndex
+                      ? 'bg-purple-600 w-6'
+                      : 'bg-white bg-opacity-60 hover:bg-opacity-80'
+                  "
+                ></button>
+              </div>
+            </template>
+          </div>
         </div>
 
         <!-- Right Half: User Details -->
@@ -98,7 +149,15 @@
 </template>
 
 <script setup lang="ts">
-import { ListFilter, Flame, X, Rewind, LogOut } from "lucide-vue-next";
+import {
+  ListFilter,
+  Flame,
+  X,
+  Rewind,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-vue-next";
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import FilterBox from "./FilterBox.vue";
@@ -112,23 +171,106 @@ const { nearbyUsers, lastSeenProfile } = storeToRefs(userStore);
 const { getnearbyusers, userProfileAction, undoUserAction } = userStore;
 
 const lastUser = computed(() => {
-  return nearbyUsers.value.length > 0
-    ? nearbyUsers.value[nearbyUsers.value.length - 1]
-    : null;
+  const user =
+    nearbyUsers.value.length > 0
+      ? nearbyUsers.value[nearbyUsers.value.length - 1]
+      : null;
+
+  if (user) {
+    console.log("👤 lastUser computed:", {
+      name: user.full_name,
+      profile_photo: user.profile_photo,
+      photos: user.photos,
+      photosCount: user.photos?.length || 0,
+    });
+  }
+
+  return user;
 });
 
 const showFilterBox = ref(false);
+const currentPhotoIndex = ref(0);
+
+// Reset photo index when user changes
+const resetPhotoIndex = () => {
+  console.log(
+    "🔄 resetPhotoIndex: Resetting from",
+    currentPhotoIndex.value,
+    "to 0"
+  );
+  currentPhotoIndex.value = 0;
+};
+
+// Get current photo based on index
+const getCurrentPhoto = () => {
+  if (!lastUser.value?.photos || lastUser.value.photos.length === 0) {
+    console.log("🔍 getCurrentPhoto: No photos available", {
+      hasPhotos: !!lastUser.value?.photos,
+      photosLength: lastUser.value?.photos?.length || 0,
+    });
+    return null;
+  }
+  const currentPhoto = lastUser.value.photos[currentPhotoIndex.value];
+  console.log("🔍 getCurrentPhoto:", {
+    currentPhotoIndex: currentPhotoIndex.value,
+    totalPhotos: lastUser.value.photos.length,
+    currentPhoto: currentPhoto,
+    isString: typeof currentPhoto === "string",
+    isObject: typeof currentPhoto === "object",
+    imageUrl:
+      typeof currentPhoto === "string" ? currentPhoto : currentPhoto?.image_url,
+  });
+  return currentPhoto;
+};
+
+// Navigation functions
+const nextPhoto = () => {
+  console.log("➡️ nextPhoto called:", {
+    currentIndex: currentPhotoIndex.value,
+    totalPhotos: lastUser.value?.photos?.length || 0,
+    canGoNext:
+      lastUser.value?.photos &&
+      currentPhotoIndex.value < lastUser.value.photos.length - 1,
+  });
+
+  if (
+    lastUser.value?.photos &&
+    currentPhotoIndex.value < lastUser.value.photos.length - 1
+  ) {
+    currentPhotoIndex.value++;
+    console.log("✅ nextPhoto: Index changed to", currentPhotoIndex.value);
+  } else {
+    console.log("⚠️ nextPhoto: Cannot go next");
+  }
+};
+
+const previousPhoto = () => {
+  console.log("⬅️ previousPhoto called:", {
+    currentIndex: currentPhotoIndex.value,
+    canGoPrevious: currentPhotoIndex.value > 0,
+  });
+
+  if (currentPhotoIndex.value > 0) {
+    currentPhotoIndex.value--;
+    console.log("✅ previousPhoto: Index changed to", currentPhotoIndex.value);
+  } else {
+    console.log("⚠️ previousPhoto: Cannot go previous");
+  }
+};
 
 const userAction = (action: "send_aura" | "rewind" | "skip") => {
   switch (action) {
     case "send_aura":
       userProfileAction(true);
+      resetPhotoIndex(); // Reset when moving to next user
       break;
     case "rewind":
       undoUserAction();
+      resetPhotoIndex(); // Reset when rewinding
       break;
     case "skip":
       userProfileAction(false);
+      resetPhotoIndex(); // Reset when skipping
       break;
     default:
       console.warn(`Unknown action: ${action}`);

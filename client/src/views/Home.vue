@@ -31,6 +31,70 @@
         <userChat :chatUser="chatUser" :key="chatUser.user_id" />
       </template>
     </div>
+
+    <!-- Navigation Confirmation Dialog -->
+    <div
+      v-if="showNavigationConfirm"
+      class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click.self="cancelNavigation"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out scale-100"
+      >
+        <!-- Dialog Header -->
+        <div class="p-6 pb-4">
+          <div class="flex items-center justify-center mb-4">
+            <div
+              class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center"
+            >
+              <AlertTriangle class="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 text-center mb-2">
+            Leave Without Saving?
+          </h3>
+          <p class="text-gray-600 text-center text-sm leading-relaxed">
+            You have unsaved changes to your profile photos. What would you like
+            to do?
+          </p>
+        </div>
+
+        <!-- Dialog Actions -->
+        <div class="px-6 pb-6">
+          <div class="flex flex-col gap-3">
+            <!-- Save and Continue Button -->
+            <button
+              @click="saveAndNavigate"
+              :disabled="isSavingNavigation"
+              class="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <Save class="w-5 h-5" v-if="!isSavingNavigation" />
+              <Loader2 class="w-5 h-5 animate-spin" v-else />
+              {{ isSavingNavigation ? "Saving..." : "Save & Continue" }}
+            </button>
+
+            <!-- Discard and Continue Button -->
+            <button
+              @click="discardAndNavigate"
+              :disabled="isSavingNavigation"
+              class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Trash2 class="w-5 h-5" />
+              Discard & Continue
+            </button>
+
+            <!-- Cancel Button -->
+            <button
+              @click="cancelNavigation"
+              :disabled="isSavingNavigation"
+              class="w-full text-gray-500 hover:text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -42,8 +106,54 @@ import Feed from "../components/Home/Feed.vue";
 import Toaster from "../components/toast/Toaster.vue";
 import UserProfile from "../components/user/UserProfile.vue";
 import { useActionStore } from "../stores/actionStore";
+import { useUserStore } from "../stores/user";
+import { useChatStore } from "../stores/chatStore";
+import { storeToRefs } from "pinia";
+import { AlertTriangle, Save, Trash2, Loader2 } from "lucide-vue-next";
 
-const { chatUser, openProfile } = storeToRefs(useActionStore());
+const actionStore = useActionStore();
+const userStore = useUserStore();
+const chatStore = useChatStore();
+const { chatUser, openProfile, showNavigationConfirm } =
+  storeToRefs(actionStore);
+const { user } = storeToRefs(userStore);
+const { ws } = storeToRefs(chatStore);
+
+const isSavingNavigation = ref(false);
+
+// Navigation confirmation methods
+const saveAndNavigate = async () => {
+  isSavingNavigation.value = true;
+  try {
+    // Save the profile changes
+    const delta = userStore.saveProfileChanges();
+    console.log("Saving before navigation:", delta);
+
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Update original data and reset changes
+    userStore.updateOriginalData();
+    userStore.resetChanges();
+
+    console.log("✅ Profile saved successfully before navigation!");
+
+    // Proceed with navigation
+    actionStore.confirmNavigation();
+  } catch (error) {
+    console.error("❌ Failed to save profile before navigation:", error);
+  } finally {
+    isSavingNavigation.value = false;
+  }
+};
+
+const discardAndNavigate = () => {
+  actionStore.discardAndNavigate();
+};
+
+const cancelNavigation = () => {
+  actionStore.cancelNavigation();
+};
 
 const isHovered = ref(false);
 const screenWidth = ref(
@@ -56,6 +166,7 @@ const updateScreenWidth = () => {
 
 onMounted(async () => {
   window.addEventListener("resize", updateScreenWidth);
+  chatStore.connectWebSocket(user.value?.id);
   if (user.value?.id) {
     await chatStore.loadUserMessages(user.value.id);
   }
@@ -71,30 +182,6 @@ onUnmounted(() => {
 const isSidenavCollapsed = computed(() => {
   const isLargeScreen = screenWidth.value >= 1024; // lg breakpoint
   return !isLargeScreen && !isHovered.value;
-});
-
-import { useUserStore } from "../stores/user";
-import { useChatStore } from "../stores/chatStore";
-import { storeToRefs } from "pinia";
-
-const userStore = useUserStore();
-const chatStore = useChatStore();
-const { user } = storeToRefs(userStore);
-const { ws } = storeToRefs(chatStore);
-
-// const message = ref("");
-
-// const sendMessage = () => {
-//   if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-//     ws.value.send(message.value);
-//     message.value = "";
-//   } else {
-//     console.error("WebSocket is not connected");
-//   }
-// };
-
-onMounted(() => {
-  chatStore.connectWebSocket(user.value?.id);
 });
 
 onBeforeUnmount(() => {

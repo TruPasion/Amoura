@@ -128,17 +128,81 @@
         </div>
       </div>
     </div>
+
+    <!-- Confirmation Dialog -->
+    <div
+      v-if="showConfirmDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click.self="showConfirmDialog = false"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out scale-100"
+      >
+        <!-- Dialog Header -->
+        <div class="p-6 pb-4">
+          <div class="flex items-center justify-center mb-4">
+            <div
+              class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center"
+            >
+              <AlertTriangle class="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 text-center mb-2">
+            Save Your Changes?
+          </h3>
+          <p class="text-gray-600 text-center text-sm leading-relaxed">
+            You have unsaved changes to your profile photos. Would you like to
+            save them before leaving?
+          </p>
+        </div>
+
+        <!-- Dialog Actions -->
+        <div class="px-6 pb-6">
+          <div class="flex flex-col gap-3">
+            <!-- Save Button -->
+            <button
+              @click="confirmSave"
+              :disabled="isSaving"
+              class="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <Save class="w-5 h-5" v-if="!isSaving" />
+              <Loader2 class="w-5 h-5 animate-spin" v-else />
+              {{ isSaving ? "Saving..." : "Save Changes" }}
+            </button>
+
+            <!-- Discard Button -->
+            <button
+              @click="confirmDiscard"
+              :disabled="isSaving"
+              class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Trash2 class="w-5 h-5" />
+              Discard Changes
+            </button>
+
+            <!-- Cancel Button -->
+            <button
+              @click="showConfirmDialog = false"
+              :disabled="isSaving"
+              class="w-full text-gray-500 hover:text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onBeforeUnmount, onMounted } from "vue";
 import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
 import { useActionStore } from "../../stores/actionStore";
 import { storeToRefs } from "pinia";
 import PhotoGrid from "./PhotoGrid.vue";
-import { Trash2, Save, Loader2, X } from "lucide-vue-next";
+import { Trash2, Save, Loader2, X, AlertTriangle } from "lucide-vue-next";
 
 const userStore = useUserStore();
 const actionStore = useActionStore();
@@ -147,6 +211,9 @@ const { closeUserProfile } = actionStore;
 
 // Local state for managing changes
 const isSaving = ref(false);
+const showConfirmDialog = ref(false);
+let pendingCloseAction: (() => void) | null = null;
+let isComponentMounted = ref(true);
 
 const handleChanges = (hasChanges: boolean) => {
   // This is handled automatically by the store now
@@ -155,7 +222,15 @@ const handleChanges = (hasChanges: boolean) => {
 };
 
 const closeProfile = () => {
-  closeUserProfile();
+  if (hasUnsavedChanges.value) {
+    pendingCloseAction = () => {
+      // Force close by directly setting the state
+      actionStore.openProfile = false;
+    };
+    showConfirmDialog.value = true;
+  } else {
+    actionStore.openProfile = false;
+  }
 };
 
 // Photo handlers are now managed in PhotoGrid via the store
@@ -205,6 +280,79 @@ const calculateAge = (dateOfBirth: string | null | undefined) => {
 
   return age;
 };
+
+const confirmSave = async () => {
+  try {
+    await saveProfile();
+    showConfirmDialog.value = false;
+    if (pendingCloseAction) {
+      pendingCloseAction();
+      pendingCloseAction = null;
+    }
+  } catch (error) {
+    // Error handling is already done in saveProfile
+  }
+};
+
+const confirmDiscard = () => {
+  userStore.revertToOriginalData();
+  showConfirmDialog.value = false;
+  if (pendingCloseAction) {
+    pendingCloseAction();
+    pendingCloseAction = null;
+  }
+};
+
+// Handle page navigation/refresh
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (hasUnsavedChanges.value && isComponentMounted.value) {
+    event.preventDefault();
+    event.returnValue =
+      "You have unsaved changes. Are you sure you want to leave?";
+    return event.returnValue;
+  }
+};
+
+// Override the close action to check for unsaved changes
+const originalCloseUserProfile = closeUserProfile;
+const interceptedCloseUserProfile = () => {
+  if (hasUnsavedChanges.value && isComponentMounted.value) {
+    pendingCloseAction = originalCloseUserProfile;
+    showConfirmDialog.value = true;
+  } else {
+    originalCloseUserProfile();
+  }
+};
+
+// Lifecycle hooks
+onMounted(() => {
+  isComponentMounted.value = true;
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  // Replace the action store method temporarily
+  actionStore.closeUserProfile = interceptedCloseUserProfile;
+});
+
+// Handle component unmount
+onBeforeUnmount(() => {
+  // Restore original method
+  actionStore.closeUserProfile = originalCloseUserProfile;
+  isComponentMounted.value = false;
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+
+  // If there are unsaved changes when component is being unmounted
+  if (hasUnsavedChanges.value) {
+    console.warn("⚠️ Profile component unmounted with unsaved changes!");
+    console.log(
+      "Changes will be preserved in store until user returns or saves."
+    );
+    // Note: We don't revert here to allow user to return and save changes
+  }
+
+  // Clean up pending actions
+  if (pendingCloseAction) {
+    pendingCloseAction = null;
+  }
+});
 
 const deleteAccount = () => {
   console.log("Delete account functionality - I will add logic later");

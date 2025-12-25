@@ -30,7 +30,7 @@ const openProfile = () => {
         <div class="w-12 h-12">
           <fwb-avatar
             bordered
-            :img="userStore.user?.profile?.profile_photo"
+            :img="userStore.user?.profile?.profile_photo?.image_url"
             class="rounded-full"
           />
         </div>

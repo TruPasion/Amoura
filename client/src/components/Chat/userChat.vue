@@ -23,7 +23,7 @@
           </div>
         </div>
         <button @click="closeChat" class="text-gray-500 hover:text-gray-800">
-          ✖
+          <X class="w-5 h-5" />
         </button>
       </div>
 
@@ -149,6 +149,7 @@ import { useChatStore } from "../../stores/chatStore";
 import { useUserStore } from "../../stores/user";
 
 import { storeToRefs } from "pinia";
+import { X } from "lucide-vue-next";
 
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);

@@ -34,7 +34,7 @@ export interface NearbyUserProfile {
   gender: string;
   latitude: string;
   longitude: string;
-  profile_photo: string;
+  profile_photo: PhotoObject;
   created_at: string; // ISO 8601 date string
   distance: number; // Distance in meters
   photos: PhotoObject[]; // Array of photo objects

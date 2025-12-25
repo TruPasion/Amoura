@@ -4,6 +4,7 @@ import LandingPage from "../views/Landingpage.vue";
 import Home from "../views/Home.vue";
 import Registration from "../components/Registration/Regview.vue";
 import { useUserStore } from "../stores/user";
+import { useActionStore } from "../stores/actionStore";
 
 import { getDistanceInMeters } from "../utils/geo";
 
@@ -41,6 +42,31 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+// Global navigation guard to handle unsaved profile changes
+router.beforeEach(async (to, from, next) => {
+  const userStore = useUserStore();
+  const actionStore = useActionStore();
+
+  // Check if user is leaving profile edit mode with unsaved changes
+  if (userStore.hasUnsavedChanges && actionStore.openProfile) {
+    // Show browser's built-in confirmation dialog
+    const confirmLeave = window.confirm(
+      "You have unsaved changes to your profile photos. Do you want to leave without saving?"
+    );
+
+    if (!confirmLeave) {
+      return next(false); // Cancel navigation
+    } else {
+      // User chose to leave, we could optionally revert changes here
+      console.warn("⚠️ User left profile with unsaved changes");
+      // Uncomment below if you want to revert changes on navigation
+      // userStore.revertToOriginalData();
+    }
+  }
+
+  return next(); // Continue with navigation
 });
 
 // router/index.ts

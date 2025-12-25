@@ -344,6 +344,25 @@ export const useUserStore = defineStore("user", () => {
     };
   }
 
+  function revertToOriginalData() {
+    if (originalData.value && user.value?.profile) {
+      // Revert profile photo
+      user.value.profile.profile_photo = originalData.value.profile_photo
+        ? { ...originalData.value.profile_photo }
+        : undefined;
+
+      // Revert photos array
+      user.value.profile.photos = originalData.value.photos.map((photo) => ({
+        ...photo,
+      }));
+
+      // Reset change tracking
+      resetChanges();
+
+      console.log("✅ Profile reverted to original state");
+    }
+  }
+
   function saveProfileChanges() {
     const delta = {
       profile_photo_change: profileChanges.value.profile_photo_changed
@@ -422,6 +441,7 @@ export const useUserStore = defineStore("user", () => {
     hasUnsavedChanges,
     profileChanges,
     resetChanges,
+    revertToOriginalData,
     saveProfileChanges,
     updateOriginalData,
     nextPhotoId,

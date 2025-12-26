@@ -99,6 +99,13 @@ export const useChatStore = defineStore("chat", () => {
   const setOpenedChat = (userId: number | null) => {
     openedChat.value = userId;
     if (userId !== null) {
+      // Ensure the user entry exists before accessing unread property
+      if (!userMessages.value[userId]) {
+        userMessages.value[userId] = {
+          messages: [],
+          unread: 0,
+        };
+      }
       userMessages.value[userId].unread = 0; // Reset unread count when opening chat
     }
   };
@@ -154,6 +161,17 @@ export const useChatStore = defineStore("chat", () => {
             "success",
             5000
           );
+
+          // Create empty entry for matched user to prevent errors when opening chat
+          if (
+            data.matched_user_id &&
+            !userMessages.value[data.matched_user_id]
+          ) {
+            userMessages.value[data.matched_user_id] = {
+              messages: [],
+              unread: 0,
+            };
+          }
         } else if (
           data.type === "message_sent" ||
           data.type === "message_delivered"

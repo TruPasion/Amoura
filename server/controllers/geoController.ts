@@ -39,52 +39,84 @@ export const getNearbyUsers = async (req: Request, res: Response) => {
     }
 
     const query = `
+SELECT 
+  p.user_id,
+  p.full_name,
+  p.gender,
+
+  p.bio,
+  p.job_title,
+  p.company,
+  p.education,
+  p.height_cm,
+  p.drinking_id,
+  p.smoking_id,
+  p.exercise_id,
+
+  MAX(CASE WHEN upp.is_primary = true THEN upp.image_url END) AS profile_photo,
+
+  ARRAY_REMOVE(
+    ARRAY_AGG(upp.image_url ORDER BY upp.position),
+    NULL
+  ) AS photos,
+
+  COALESCE(ui.interests, '{}') AS interests,
+
+  p.created_at,
+  l.latitude,
+  l.longitude,
+
+  ST_Distance(
+    l.location,
+    ST_SetSRID(ST_MakePoint($2, $3), 4326)
+  ) AS distance,
+
+  DATE_PART('year', AGE(p.date_of_birth)) AS age
+
+FROM user_locations l
+JOIN user_profiles p 
+  ON l.user_id = p.user_id
+
+LEFT JOIN user_profile_pictures upp
+  ON upp.user_id = p.user_id
+
+LEFT JOIN (
   SELECT 
-    p.user_id,
-    p.full_name,
-    p.gender,
+    user_id,
+    ARRAY_AGG(interest_id ORDER BY interest_id) AS interests
+  FROM user_interests
+  GROUP BY user_id
+) ui ON ui.user_id = p.user_id
 
-    MAX(CASE WHEN upp.is_primary = true THEN upp.image_url END) AS profile_photo,
+WHERE ${conditions.join(" AND ")}
 
-    ARRAY_REMOVE(
-      ARRAY_AGG(upp.image_url ORDER BY upp.position),
-      NULL
-    ) AS photos,
+  AND NOT EXISTS (
+    SELECT 1 
+    FROM user_seen_profiles s 
+    WHERE s.user_id = $1 
+      AND s.seen_user_id = p.user_id
+  )
 
-    p.created_at,
-    l.latitude,
-    l.longitude,
-    ST_Distance(
-      l.location,
-      ST_SetSRID(ST_MakePoint($2, $3), 4326)
-    ) AS distance,
-    DATE_PART('year', AGE(p.date_of_birth)) AS age
+GROUP BY 
+  p.user_id,
+  p.full_name,
+  p.gender,
+  p.bio,
+  p.job_title,
+  p.company,
+  p.education,
+  p.height_cm,
+  p.drinking_id,
+  p.smoking_id,
+  p.exercise_id,
+  p.date_of_birth,
+  p.created_at,
+  l.latitude,
+  l.longitude,
+  l.location,
+  ui.interests
 
-  FROM user_locations l
-  JOIN user_profiles p 
-    ON l.user_id = p.user_id
-  LEFT JOIN user_profile_pictures upp
-    ON upp.user_id = p.user_id
-
-  WHERE ${conditions.join(" AND ")}
-    AND NOT EXISTS (
-      SELECT 1 
-      FROM user_seen_profiles s 
-      WHERE s.user_id = $1 
-        AND s.seen_user_id = p.user_id
-    )
-
-  GROUP BY 
-    p.user_id,
-    p.full_name,
-    p.gender,
-    p.date_of_birth,
-    p.created_at,
-    l.latitude,
-    l.longitude,
-    l.location
-
-  LIMIT 10
+LIMIT 10
 `;
 
     const result = await pool.query(query, params);

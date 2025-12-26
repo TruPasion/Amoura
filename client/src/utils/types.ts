@@ -39,14 +39,23 @@ export interface User {
 export interface NearbyUserProfile {
   user_id: number;
   full_name: string;
-  age: string; // ISO 8601 date string
   gender: string;
+  bio: string | null;
+  job_title: string | null;
+  company: string | null;
+  education: string | null;
+  height_cm: number | null;
+  drinking_id: number | null;
+  smoking_id: number | null;
+  exercise_id: number | null;
+  profile_photo: string; // Profile photo URL string
+  photos: string[]; // Array of photo URL strings
+  interests: number[]; // Array of interest IDs
+  created_at: string; // ISO 8601 date string
   latitude: string;
   longitude: string;
-  profile_photo: PhotoObject;
-  created_at: string; // ISO 8601 date string
   distance: number; // Distance in meters
-  photos: PhotoObject[]; // Array of photo objects
+  age: number; // Calculated age
 }
 
 export interface Match {

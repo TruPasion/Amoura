@@ -85,34 +85,323 @@
 
         <!-- Right Side - Profile Info -->
         <div class="w-3/4 p-6 overflow-y-auto">
-          <!-- Profile Header -->
-          <div class="flex items-center space-x-6 mb-8">
-            <div class="w-24 h-24">
-              <img
-                :src="user?.profile?.profile_photo?.image_url"
-                :alt="user?.profile?.full_name || user?.name"
-                class="w-full h-full rounded-full object-cover shadow-lg border-4 border-purple-200"
-              />
-            </div>
-            <div class="flex-1">
-              <h2 class="text-2xl font-bold text-gray-900 mb-3 tracking-tight">
-                {{ user?.profile?.full_name || user?.name }}
-              </h2>
-              <div class="flex items-center space-x-6 mb-3">
-                <div class="flex items-center space-x-2">
-                  <span class="text-sm font-medium text-gray-600">Age</span>
-                  <span class="text-base font-semibold text-gray-900">
-                    {{ calculateAge(user?.profile?.date_of_birth) || "N/A" }}
-                  </span>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <span class="text-sm font-medium text-gray-600">Gender</span>
-                  <span class="text-base font-semibold text-gray-900">
-                    {{ user?.profile?.gender || "N/A" }}
-                  </span>
+          <!-- About You Section - Top Priority -->
+          <div class="mb-8">
+            <div class="flex items-start gap-6 mb-6">
+              <!-- Profile Info (Left Side) -->
+              <div class="flex-shrink-0 w-64">
+                <div
+                  class="flex flex-col items-center text-center bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 border border-purple-200"
+                >
+                  <div class="w-20 h-20 mb-4">
+                    <img
+                      :src="user?.profile?.profile_photo?.image_url"
+                      :alt="user?.profile?.full_name || user?.name"
+                      class="w-full h-full rounded-full object-cover shadow-lg border-3 border-white"
+                    />
+                  </div>
+                  <h2
+                    class="text-lg font-bold text-gray-900 mb-2 tracking-tight"
+                  >
+                    {{ user?.profile?.full_name || user?.name }}
+                  </h2>
+                  <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Age:</span>
+                      <span class="font-medium text-gray-900">
+                        {{
+                          calculateAge(user?.profile?.date_of_birth) || "N/A"
+                        }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Gender:</span>
+                      <span class="font-medium text-gray-900">
+                        {{ user?.profile?.gender || "N/A" }}
+                      </span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-3 truncate">
+                      {{ user?.email }}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <p class="text-sm text-gray-500 font-normal">{{ user?.email }}</p>
+
+              <!-- About You Title and Bio (Right Side) -->
+              <div class="flex-1">
+                <h3
+                  class="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2"
+                >
+                  <User class="w-5 h-5 text-purple-600" />
+                  About You
+                </h3>
+
+                <!-- Bio Field -->
+                <div class="mb-6">
+                  <label
+                    class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"
+                  >
+                    <FileText class="w-4 h-4 text-gray-500" />
+                    Bio
+                  </label>
+                  <div class="relative">
+                    <textarea
+                      v-model="profileData.bio"
+                      @input="handleProfileFieldChange"
+                      placeholder="Adventure seeker and coffee enthusiast ☕ Always planning my next trip or trying a new restaurant. Looking for someone to share spontaneous adventures with!"
+                      rows="4"
+                      maxlength="500"
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-400"
+                    ></textarea>
+                    <div
+                      class="absolute bottom-2 right-2 text-xs text-gray-500"
+                    >
+                      {{ (profileData.bio || "").length }}/500
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Two Column Layout for Other Fields -->
+            <div class="grid grid-cols-2 gap-6">
+              <!-- Job Title -->
+              <div>
+                <label
+                  class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"
+                >
+                  <Briefcase class="w-4 h-4 text-gray-500" />
+                  Job Title
+                </label>
+                <input
+                  v-model="profileData.jobTitle"
+                  @input="handleProfileFieldChange"
+                  type="text"
+                  placeholder="Product Designer"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-400"
+                />
+              </div>
+
+              <!-- Company -->
+              <div>
+                <label
+                  class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"
+                >
+                  <Building class="w-4 h-4 text-gray-500" />
+                  Company
+                </label>
+                <input
+                  v-model="profileData.company"
+                  @input="handleProfileFieldChange"
+                  type="text"
+                  placeholder="Spotify"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-400"
+                />
+              </div>
+
+              <!-- Education -->
+              <div>
+                <label
+                  class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"
+                >
+                  <GraduationCap class="w-4 h-4 text-gray-500" />
+                  Education
+                </label>
+                <input
+                  v-model="profileData.education"
+                  @input="handleProfileFieldChange"
+                  type="text"
+                  placeholder="Stanford University"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-400"
+                />
+              </div>
+
+              <!-- Height -->
+              <div>
+                <label
+                  class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"
+                >
+                  <Ruler class="w-4 h-4 text-gray-500" />
+                  Height
+                </label>
+                <select
+                  v-model="profileData.height"
+                  @change="handleProfileFieldChange"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="">Select height</option>
+                  <option
+                    v-for="height in heightOptions"
+                    :key="height"
+                    :value="height"
+                  >
+                    {{ height }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lifestyle & Interests Side by Side -->
+          <div class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Lifestyle Section -->
+            <div>
+              <h3
+                class="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2"
+              >
+                <Heart class="w-5 h-5 text-purple-600" />
+                Lifestyle
+              </h3>
+
+              <!-- Lifestyle Cards - 3 Column Layout -->
+              <div class="grid grid-cols-3 gap-3">
+                <!-- Drinking Card -->
+                <div class="relative">
+                  <div
+                    @click.stop="toggleDropdown('drinking')"
+                    class="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-3 cursor-pointer hover:from-purple-100 hover:to-purple-150 hover:border-purple-300 transition-all duration-200 min-h-[80px] flex flex-col items-center justify-center"
+                  >
+                    <Wine class="w-6 h-6 text-purple-600 mb-2" />
+                    <span class="text-sm font-medium text-gray-700 mb-1"
+                      >Drinking</span
+                    >
+                    <span class="text-xs text-gray-600 text-center">
+                      {{
+                        getOptionLabel(drinkingOptions, profileData.drinking)
+                      }}
+                    </span>
+                    <ChevronDown class="w-4 h-4 text-gray-400 mt-1" />
+                  </div>
+                  <!-- Dropdown -->
+                  <div
+                    v-if="activeDropdown === 'drinking'"
+                    @click.stop
+                    class="absolute inset-0 z-50 bg-white border-2 border-purple-300 rounded-xl shadow-lg overflow-y-auto flex flex-col"
+                  >
+                    <div
+                      v-for="option in drinkingOptions"
+                      :key="option.id"
+                      @click.stop="selectOption('drinking', option.id)"
+                      class="px-3 py-2 hover:bg-purple-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                    >
+                      {{ option.label }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Smoking Card -->
+                <div class="relative">
+                  <div
+                    @click.stop="toggleDropdown('smoking')"
+                    class="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl p-3 cursor-pointer hover:from-orange-100 hover:to-orange-150 hover:border-orange-300 transition-all duration-200 min-h-[80px] flex flex-col items-center justify-center"
+                  >
+                    <Ban class="w-6 h-6 text-orange-600 mb-2" />
+                    <span class="text-sm font-medium text-gray-700 mb-1"
+                      >Smoking</span
+                    >
+                    <span class="text-xs text-gray-600 text-center">
+                      {{ getOptionLabel(smokingOptions, profileData.smoking) }}
+                    </span>
+                    <ChevronDown class="w-4 h-4 text-gray-400 mt-1" />
+                  </div>
+                  <!-- Dropdown -->
+                  <div
+                    v-if="activeDropdown === 'smoking'"
+                    @click.stop
+                    class="absolute inset-0 z-50 bg-white border-2 border-orange-300 rounded-xl shadow-lg overflow-y-auto flex flex-col"
+                  >
+                    <div
+                      v-for="option in smokingOptions"
+                      :key="option.id"
+                      @click.stop="selectOption('smoking', option.id)"
+                      class="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                    >
+                      {{ option.label }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Exercise Card -->
+                <div class="relative">
+                  <div
+                    @click.stop="toggleDropdown('exercise')"
+                    class="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-3 cursor-pointer hover:from-green-100 hover:to-green-150 hover:border-green-300 transition-all duration-200 min-h-[80px] flex flex-col items-center justify-center"
+                  >
+                    <Dumbbell class="w-6 h-6 text-green-600 mb-2" />
+                    <span class="text-sm font-medium text-gray-700 mb-1"
+                      >Exercise</span
+                    >
+                    <span class="text-xs text-gray-600 text-center">
+                      {{
+                        getOptionLabel(exerciseOptions, profileData.exercise)
+                      }}
+                    </span>
+                    <ChevronDown class="w-4 h-4 text-gray-400 mt-1" />
+                  </div>
+                  <!-- Dropdown -->
+                  <div
+                    v-if="activeDropdown === 'exercise'"
+                    @click.stop
+                    class="absolute inset-0 z-50 bg-white border-2 border-green-300 rounded-xl shadow-lg overflow-y-auto flex flex-col"
+                  >
+                    <div
+                      v-for="option in exerciseOptions"
+                      :key="option.id"
+                      @click.stop="selectOption('exercise', option.id)"
+                      class="px-3 py-2 hover:bg-green-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                    >
+                      {{ option.label }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interests Section -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <h3
+                  class="text-xl font-semibold text-gray-900 flex items-center gap-2"
+                >
+                  <Star class="w-5 h-5 text-purple-600" />
+                  Interests
+                </h3>
+                <span
+                  class="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full"
+                >
+                  {{ selectedInterests.length }}/{{ MAX_INTERESTS }}
+                </span>
+              </div>
+
+              <!-- Interests Tags -->
+              <div class="flex flex-wrap gap-2">
+                <div
+                  v-for="interest in interestsOptions"
+                  :key="interest.id"
+                  :class="[
+                    'inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-200',
+                    selectedInterests.includes(interest.id)
+                      ? 'bg-purple-600 text-white shadow-md hover:bg-purple-700'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 hover:border-gray-300',
+                    !selectedInterests.includes(interest.id) &&
+                    selectedInterests.length >= MAX_INTERESTS
+                      ? 'opacity-50 cursor-not-allowed'
+                      : '',
+                  ]"
+                  @click="
+                    selectedInterests.includes(interest.id)
+                      ? null
+                      : toggleInterest(interest.id)
+                  "
+                >
+                  <span>{{ interest.label }}</span>
+                  <X
+                    v-if="selectedInterests.includes(interest.id)"
+                    class="w-4 h-4 hover:bg-purple-500 rounded-full p-0.5 transition-colors"
+                    @click.stop="toggleInterest(interest.id)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -298,7 +587,35 @@ import { useUserStore } from "../../stores/user";
 import { useActionStore } from "../../stores/actionStore";
 import { storeToRefs } from "pinia";
 import PhotoGrid from "./PhotoGrid.vue";
-import { Trash2, Save, Loader2, X, AlertTriangle } from "lucide-vue-next";
+import {
+  Trash2,
+  Save,
+  Loader2,
+  X,
+  AlertTriangle,
+  User,
+  FileText,
+  Briefcase,
+  Building,
+  GraduationCap,
+  Ruler,
+  Wine,
+  Ban,
+  Dumbbell,
+  Heart,
+  ChevronDown,
+  Star,
+} from "lucide-vue-next";
+import {
+  smokingOptions,
+  drinkingOptions,
+  exerciseOptions,
+  interestsOptions,
+  MAX_INTERESTS,
+  convertHeightToCm,
+  heightOptions,
+} from "../../utils/profileOptions";
+import type { OptionItem } from "../../utils/profileOptions";
 
 const userStore = useUserStore();
 const actionStore = useActionStore();
@@ -313,6 +630,81 @@ const isDeletingAccount = ref(false);
 const isResettingMatches = ref(false);
 let pendingCloseAction: (() => void) | null = null;
 let isComponentMounted = ref(true);
+
+// Profile form data - store IDs for backend communication
+const profileData = ref({
+  bio: "",
+  jobTitle: "",
+  company: "",
+  education: "",
+  height: "", // Will be converted to cm when saving
+  drinking: null as number | null, // Store ID
+  smoking: null as number | null, // Store ID
+  exercise: null as number | null, // Store ID
+});
+
+// Interests data - store IDs for backend communication
+const selectedInterests = ref<number[]>([]);
+
+// Interests functionality
+const toggleInterest = (interestId: number) => {
+  const index = selectedInterests.value.indexOf(interestId);
+  if (index > -1) {
+    // Remove if already selected
+    selectedInterests.value.splice(index, 1);
+  } else if (selectedInterests.value.length < MAX_INTERESTS) {
+    // Add if under limit
+    selectedInterests.value.push(interestId);
+  }
+  handleProfileFieldChange();
+};
+
+// Helper functions to get display text
+const getOptionLabel = (options: OptionItem[], id: number | null): string => {
+  if (!id) return "Select preference";
+  const option = options.find((opt) => opt.id === id);
+  return option ? option.label : "Select preference";
+};
+
+const getInterestLabel = (id: number): string => {
+  const interest = interestsOptions.find((opt) => opt.id === id);
+  return interest ? interest.label : "";
+};
+
+// Track if profile fields have changed
+const hasProfileFieldChanges = ref(false);
+
+// Dropdown state
+const activeDropdown = ref("");
+
+const toggleDropdown = (field: string) => {
+  console.log("Toggling dropdown for:", field);
+  activeDropdown.value = activeDropdown.value === field ? "" : field;
+  console.log("Active dropdown now:", activeDropdown.value);
+};
+
+const selectOption = (field: string, optionId: number) => {
+  console.log("Selecting option:", optionId, "for field:", field);
+  (profileData.value as any)[field] = optionId;
+  activeDropdown.value = "";
+  handleProfileFieldChange();
+  console.log("Updated profileData:", profileData.value);
+};
+
+// Close dropdown when clicking outside
+const closeDropdowns = (event?: Event) => {
+  // Don't close if clicking on dropdown elements
+  if (event?.target && (event.target as Element).closest(".relative")) {
+    return;
+  }
+  activeDropdown.value = "";
+};
+
+const handleProfileFieldChange = () => {
+  hasProfileFieldChanges.value = true;
+  // This will trigger the save button to appear
+  console.log("Profile field changed:", profileData.value);
+};
 
 const handleChanges = (hasChanges: boolean) => {
   // This is handled automatically by the store now
@@ -540,6 +932,7 @@ const interceptedCloseUserProfile = () => {
 onMounted(() => {
   isComponentMounted.value = true;
   window.addEventListener("beforeunload", handleBeforeUnload);
+  // Temporarily disabled: document.addEventListener("click", closeDropdowns);
   // Replace the action store method temporarily
   actionStore.closeUserProfile = interceptedCloseUserProfile;
 });
@@ -550,6 +943,7 @@ onBeforeUnmount(() => {
   actionStore.closeUserProfile = originalCloseUserProfile;
   isComponentMounted.value = false;
   window.removeEventListener("beforeunload", handleBeforeUnload);
+  // Temporarily disabled: document.removeEventListener("click", closeDropdowns);
 
   // If there are unsaved changes when component is being unmounted
   if (hasUnsavedChanges.value) {

@@ -1,9 +1,26 @@
 <template>
-  <template v-if="matches.length">
-    <div class="flex items-center justify-center">
-      <p v-if="!props.isCollapsed">Your Matches appear here</p>
-      <p v-else>Match</p>
+  <!-- Simple Matches Header -->
+  <div class="mb-3">
+    <div class="flex items-center justify-between py-2 px-3">
+      <div v-if="!props.isCollapsed" class="flex items-center gap-2">
+        <div class="text-red-400 text-sm">💕</div>
+        <span class="text-2xl font-pacifico text-purple-700">Matches</span>
+      </div>
+      <div v-else class="flex items-center gap-1">
+        <div class="text-red-400 text-xs">💕</div>
+      </div>
+
+      <!-- Count on the right -->
+      <div
+        class="bg-pink-100 text-pink-700 text-xs rounded-full flex items-center justify-center"
+        :class="props.isCollapsed ? 'w-5 h-5' : 'w-8 h-8'"
+      >
+        {{ matches.length }}
+      </div>
     </div>
+  </div>
+
+  <template v-if="matches.length">
     <ul>
       <li
         v-for="match in matches"

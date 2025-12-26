@@ -62,6 +62,12 @@ const isOnFeed = computed(() => {
           </div>
         </div>
       </div>
+      <!-- Horizontal separator after profile -->
+      <div class="px-3 mb-2">
+        <div
+          class="w-full h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"
+        ></div>
+      </div>
     </div>
 
     <!-- Matches - Middle Scrollable Area -->
@@ -69,6 +75,13 @@ const isOnFeed = computed(() => {
       <div class="font-serif w-full flex flex-col flex-center">
         <Matches :is-collapsed="props.isCollapsed" />
       </div>
+    </div>
+
+    <!-- Horizontal separator before Find New Matches -->
+    <div v-if="!isOnFeed" class="flex-none px-3 mb-2">
+      <div
+        class="w-full h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"
+      ></div>
     </div>
 
     <!-- Find Matches Button - Bottom Fixed -->

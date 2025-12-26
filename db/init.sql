@@ -83,6 +83,9 @@ CREATE INDEX IF NOT EXISTS idx_user_matches_user1 ON user_matches (user_id_1);
 
 CREATE INDEX IF NOT EXISTS idx_user_matches_user2 ON user_matches (user_id_2);
 
+ALTER TABLE user_profiles
+DROP COLUMN profile_photo;
+
 CREATE TABLE
   user_profile_pictures (
     id SERIAL PRIMARY KEY,
@@ -98,3 +101,100 @@ CREATE TABLE
 CREATE UNIQUE INDEX one_primary_photo_per_user ON user_profile_pictures (user_id)
 WHERE
   is_primary = true;
+
+-- lets add the profile section
+ALTER TABLE user_profiles
+ADD COLUMN bio TEXT,
+ADD COLUMN height_cm SMALLINT,
+ADD COLUMN job_title VARCHAR(150),
+ADD COLUMN company VARCHAR(150),
+ADD COLUMN education VARCHAR(150),
+ADD COLUMN drinking_id SMALLINT,
+ADD COLUMN smoking_id SMALLINT,
+ADD COLUMN exercise_id SMALLINT;
+
+CREATE TABLE
+  drinking_habits (
+    id SMALLSERIAL PRIMARY KEY,
+    label VARCHAR(50) UNIQUE NOT NULL
+  );
+
+INSERT INTO
+  drinking_habits (label)
+VALUES
+  ('Never'),
+  ('Rarely'),
+  ('Socially'),
+  ('Regularly'),
+  ('Prefer not to say');
+
+CREATE TABLE
+  smoking_habits (
+    id SMALLSERIAL PRIMARY KEY,
+    label VARCHAR(50) UNIQUE NOT NULL
+  );
+
+INSERT INTO
+  smoking_habits (label)
+VALUES
+  ('Never'),
+  ('Socially'),
+  ('Regularly'),
+  ('Trying to quit'),
+  ('Prefer not to say');
+
+CREATE TABLE
+  exercise_habits (
+    id SMALLSERIAL PRIMARY KEY,
+    label VARCHAR(50) UNIQUE NOT NULL
+  );
+
+INSERT INTO
+  exercise_habits (label)
+VALUES
+  ('Never'),
+  ('Rarely'),
+  ('Sometimes'),
+  ('Often'),
+  ('Daily');
+
+ALTER TABLE user_profiles ADD CONSTRAINT fk_user_drinking FOREIGN KEY (drinking_id) REFERENCES drinking_habits (id);
+
+ALTER TABLE user_profiles ADD CONSTRAINT fk_user_smoking FOREIGN KEY (smoking_id) REFERENCES smoking_habits (id);
+
+ALTER TABLE user_profiles ADD CONSTRAINT fk_user_exercise FOREIGN KEY (exercise_id) REFERENCES exercise_habits (id);
+
+CREATE TABLE
+  interests (
+    id SMALLSERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL
+  );
+
+CREATE TABLE
+  user_interests (
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE,
+    interest_id SMALLINT REFERENCES interests (id),
+    PRIMARY KEY (user_id, interest_id)
+  );
+
+INSERT INTO
+  interests (name)
+VALUES
+  ('Travel'),
+  ('Music'),
+  ('Movies'),
+  ('Reading'),
+  ('Cooking'),
+  ('Fitness'),
+  ('Photography'),
+  ('Art'),
+  ('Gaming'),
+  ('Hiking'),
+  ('Dancing'),
+  ('Yoga'),
+  ('Coffee'),
+  ('Wine'),
+  ('Dogs'),
+  ('Cats'),
+  ('Sports'),
+  ('Beach');

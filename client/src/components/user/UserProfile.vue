@@ -25,7 +25,7 @@
       </div>
       <div class="flex items-center gap-2 flex-none">
         <!-- Save button (only show when changes exist) -->
-        <div class="relative group" v-if="hasUnsavedChanges">
+        <div class="relative group" v-if="hasAnyUnsavedChanges">
           <button
             @click="saveProfile"
             :disabled="isSaving"
@@ -430,14 +430,14 @@
           </div>
 
           <!-- Action Button -->
-          <div class="mt-8">
+          <!-- <div class="mt-8">
             <button
               @click="closeProfile"
               class="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg"
             >
               Close Profile
             </button>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -464,8 +464,8 @@
             Save Your Changes?
           </h3>
           <p class="text-gray-600 text-center text-sm leading-relaxed">
-            You have unsaved changes to your profile photos. Would you like to
-            save them before leaving?
+            You have unsaved changes to your profile. Would you like to save
+            them before leaving?
           </p>
         </div>
 
@@ -680,9 +680,19 @@ const selectedInterests = ref<number[]>([]);
 // FORM INPUT HANDLERS
 // =============================================================================
 
+// Map camelCase form fields to snake_case backend fields
+const fieldMapping: { [key: string]: string } = {
+  jobTitle: "job_title",
+  bio: "bio",
+  company: "company",
+  education: "education",
+};
+
 const handleInputChange = (field: string, value: string) => {
   (profileData.value as any)[field] = value;
-  userStore.updateProfileField(field as any, value || null);
+  // Map camelCase to snake_case for store
+  const backendFieldName = fieldMapping[field] || field;
+  userStore.updateProfileField(backendFieldName as any, value || null);
   updateChangeStatus(); // Manually trigger change detection
 };
 
@@ -722,6 +732,7 @@ const handleInterestToggle = (interestId: number) => {
 // Initialize form data from store when component mounts
 const initializeProfileData = () => {
   if (user.value?.profile) {
+    isInitializing.value = true;
     const profile = user.value.profile;
 
     // Convert height_cm back to display format if it exists
@@ -744,7 +755,33 @@ const initializeProfileData = () => {
       smoking: profile.smoking_id,
       exercise: profile.exercise_id,
     };
+
+    // Initialize original data for change detection - create deep copies
+    originalProfileData.value = {
+      bio: profile.bio || "",
+      jobTitle: profile.job_title || "",
+      company: profile.company || "",
+      education: profile.education || "",
+      height: heightDisplay,
+      drinking: profile.drinking_id,
+      smoking: profile.smoking_id,
+      exercise: profile.exercise_id,
+    };
+
     selectedInterests.value = [...(profile.interests || [])];
+    originalInterests.value = [...(profile.interests || [])];
+
+    console.log("🔄 Profile data initialized:");
+    console.log("Current data:", JSON.parse(JSON.stringify(profileData.value)));
+    console.log(
+      "Original data:",
+      JSON.parse(JSON.stringify(originalProfileData.value))
+    );
+    console.log("Full profile data:", profileData.value);
+
+    // Reset change detection after initialization
+    hasProfileFieldChanges.value = false;
+    isInitializing.value = false;
   }
 };
 
@@ -759,8 +796,27 @@ watch(
   () => user.value?.profile,
   () => {
     if (user.value?.profile) {
-      console.log("🔄 User profile data changed, reinitializing...");
-      initializeProfileData();
+      console.log(
+        "🔄 User profile data changed, checking if reinitialization needed..."
+      );
+
+      // Only reinitialize if we haven't started making changes yet
+      // or if this is the initial load (both current and original are empty)
+      const hasStartedEditing = hasProfileFieldChanges.value;
+      const isInitialLoad =
+        !profileData.value.bio &&
+        !profileData.value.jobTitle &&
+        !profileData.value.company &&
+        !profileData.value.education;
+
+      if (!hasStartedEditing || isInitialLoad) {
+        console.log(
+          "🔄 Reinitializing profile data (no changes detected or initial load)"
+        );
+        initializeProfileData();
+      } else {
+        console.log("🚫 Skipping reinitialization - user has unsaved changes");
+      }
     }
   },
   { deep: true }
@@ -801,6 +857,7 @@ const getInterestLabel = (id: number): string => {
 
 // Track if profile fields have changed
 const hasProfileFieldChanges = ref(false);
+const isInitializing = ref(false);
 
 // Store original values for comparison
 const originalProfileData = ref({
@@ -822,27 +879,126 @@ const hasAnyUnsavedChanges = computed(() => {
 
 // Deep comparison utility for change detection
 const hasProfileDataChanged = (): boolean => {
-  // Compare basic fields
-  const dataChanged =
-    profileData.value.bio !== originalProfileData.value.bio ||
-    profileData.value.jobTitle !== originalProfileData.value.jobTitle ||
-    profileData.value.company !== originalProfileData.value.company ||
-    profileData.value.education !== originalProfileData.value.education ||
-    profileData.value.height !== originalProfileData.value.height ||
-    profileData.value.drinking !== originalProfileData.value.drinking ||
-    profileData.value.smoking !== originalProfileData.value.smoking ||
+  // Normalize values for comparison (handle null vs empty string)
+  const normalizeValue = (val: any) => val || "";
+
+  // Compare basic fields with normalization
+  const bioChanged =
+    normalizeValue(profileData.value.bio) !==
+    normalizeValue(originalProfileData.value.bio);
+  const jobTitleChanged =
+    normalizeValue(profileData.value.jobTitle) !==
+    normalizeValue(originalProfileData.value.jobTitle);
+  const companyChanged =
+    normalizeValue(profileData.value.company) !==
+    normalizeValue(originalProfileData.value.company);
+  const educationChanged =
+    normalizeValue(profileData.value.education) !==
+    normalizeValue(originalProfileData.value.education);
+  const heightChanged =
+    profileData.value.height !== originalProfileData.value.height;
+  const drinkingChanged =
+    profileData.value.drinking !== originalProfileData.value.drinking;
+  const smokingChanged =
+    profileData.value.smoking !== originalProfileData.value.smoking;
+  const exerciseChanged =
     profileData.value.exercise !== originalProfileData.value.exercise;
+
+  const dataChanged =
+    bioChanged ||
+    jobTitleChanged ||
+    companyChanged ||
+    educationChanged ||
+    heightChanged ||
+    drinkingChanged ||
+    smokingChanged ||
+    exerciseChanged;
 
   // Compare interests arrays
   const interestsChanged =
     JSON.stringify([...selectedInterests.value].sort()) !==
     JSON.stringify([...originalInterests.value].sort());
 
+  // Debug logging for change detection
+  if (dataChanged || interestsChanged) {
+    console.group("🔍 Change Detection Details");
+    console.log(
+      "Bio changed:",
+      bioChanged,
+      normalizeValue(originalProfileData.value.bio),
+      "→",
+      normalizeValue(profileData.value.bio)
+    );
+    console.log(
+      "Job title changed:",
+      jobTitleChanged,
+      normalizeValue(originalProfileData.value.jobTitle),
+      "→",
+      normalizeValue(profileData.value.jobTitle)
+    );
+    console.log(
+      "Company changed:",
+      companyChanged,
+      normalizeValue(originalProfileData.value.company),
+      "→",
+      normalizeValue(profileData.value.company)
+    );
+    console.log(
+      "Education changed:",
+      educationChanged,
+      normalizeValue(originalProfileData.value.education),
+      "→",
+      normalizeValue(profileData.value.education)
+    );
+    console.log(
+      "Height changed:",
+      heightChanged,
+      originalProfileData.value.height,
+      "→",
+      profileData.value.height
+    );
+    console.log(
+      "Drinking changed:",
+      drinkingChanged,
+      originalProfileData.value.drinking,
+      "→",
+      profileData.value.drinking
+    );
+    console.log(
+      "Smoking changed:",
+      smokingChanged,
+      originalProfileData.value.smoking,
+      "→",
+      profileData.value.smoking
+    );
+    console.log(
+      "Exercise changed:",
+      exerciseChanged,
+      originalProfileData.value.exercise,
+      "→",
+      profileData.value.exercise
+    );
+    console.log(
+      "Interests changed:",
+      interestsChanged,
+      [...originalInterests.value].sort(),
+      "→",
+      [...selectedInterests.value].sort()
+    );
+    console.groupEnd();
+  }
+
   return dataChanged || interestsChanged;
 };
 
 // Reactive change detection
 const updateChangeStatus = () => {
+  // Don't detect changes during initialization
+  if (isInitializing.value) {
+    console.log("🔄 Skipping change detection during initialization");
+    return;
+  }
+
   const hasChanges = hasProfileDataChanged();
   if (hasProfileFieldChanges.value !== hasChanges) {
     hasProfileFieldChanges.value = hasChanges;
@@ -914,7 +1070,7 @@ const truncateBase64InObject = (obj: any): any => {
 };
 
 const closeProfile = () => {
-  if (hasUnsavedChanges.value) {
+  if (hasAnyUnsavedChanges.value) {
     pendingCloseAction = () => {
       actionStore.openProfile = false;
     };
@@ -998,95 +1154,223 @@ const saveProfile = async () => {
     // Get photo changes from store
     const photoDelta = userStore.saveProfileChanges();
 
-    // Collect profile field changes
-    const profileChanges: any = {};
+    // Check if there are actual photo changes
+    const hasPhotoChanges =
+      photoDelta &&
+      (photoDelta.profile_photo_change ||
+        (photoDelta.added_photos && photoDelta.added_photos.length > 0) ||
+        (photoDelta.deleted_photos && photoDelta.deleted_photos.length > 0));
 
+    // Only call /upload-delta if there are photo changes
+    if (hasPhotoChanges) {
+      console.log("📸 Photo changes detected, calling /upload-delta");
+      console.log("Photo delta:", truncateBase64InObject(photoDelta));
+
+      // Process delta to upload files first (fixes 413 Payload Too Large)
+      const processedDelta = await processDeltaWithFileUploads(photoDelta);
+
+      // Call the upload-delta API endpoint for photo changes only
+      const response = await fetch("/api/users/upload-delta", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.value?.id,
+          ...processedDelta,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save photo changes");
+      }
+
+      const result = await response.json();
+      console.log("✅ Photo changes saved successfully! Response:", result);
+    } else {
+      console.log("📸 No photo changes detected, skipping /upload-delta");
+    }
+
+    // Handle profile field changes separately
     if (hasProfileFieldChanges.value) {
-      // Text fields
-      if (profileData.value.bio !== (user.value?.profile?.bio || "")) {
+      console.log("📝 Profile field changes detected");
+      const profileChanges: any = {};
+
+      // Debug current vs original values
+      console.log("=== FIELD COMPARISON DEBUG ===");
+      console.log("Current data:", profileData.value);
+      console.log("Original data:", originalProfileData.value);
+      console.log("Selected interests:", selectedInterests.value);
+      console.log("Original interests:", originalInterests.value);
+
+      // Text fields - compare against originalProfileData instead of user.value.profile
+      const currentBio = profileData.value.bio || "";
+      const originalBio = originalProfileData.value.bio || "";
+      if (currentBio !== originalBio) {
         profileChanges.bio = profileData.value.bio;
+        console.log("✓ Bio changed:", originalBio, "→", currentBio);
       }
-      if (
-        profileData.value.jobTitle !== (user.value?.profile?.job_title || "")
-      ) {
+
+      const currentJobTitle = profileData.value.jobTitle || "";
+      const originalJobTitle = originalProfileData.value.jobTitle || "";
+      if (currentJobTitle !== originalJobTitle) {
         profileChanges.job_title = profileData.value.jobTitle;
+        console.log(
+          "✓ Job title changed:",
+          originalJobTitle,
+          "→",
+          currentJobTitle
+        );
       }
-      if (profileData.value.company !== (user.value?.profile?.company || "")) {
+
+      const currentCompany = profileData.value.company || "";
+      const originalCompany = originalProfileData.value.company || "";
+      if (currentCompany !== originalCompany) {
         profileChanges.company = profileData.value.company;
+        console.log("✓ Company changed:", originalCompany, "→", currentCompany);
       }
-      if (
-        profileData.value.education !== (user.value?.profile?.education || "")
-      ) {
+
+      const currentEducation = profileData.value.education || "";
+      const originalEducation = originalProfileData.value.education || "";
+      if (currentEducation !== originalEducation) {
         profileChanges.education = profileData.value.education;
+        console.log(
+          "✓ Education changed:",
+          originalEducation,
+          "→",
+          currentEducation
+        );
       }
 
-      // Height - convert to cm
-      const heightCm = convertHeightToCm(profileData.value.height);
-      if (heightCm !== user.value?.profile?.height_cm) {
+      // Height - compare height strings directly
+      const currentHeight = profileData.value.height || "";
+      const originalHeight = originalProfileData.value.height || "";
+      if (currentHeight !== originalHeight) {
+        const heightCm = convertHeightToCm(profileData.value.height);
         profileChanges.height_cm = heightCm;
+        console.log(
+          "✓ Height changed:",
+          originalHeight,
+          "→",
+          currentHeight,
+          "(",
+          heightCm,
+          "cm)"
+        );
       }
 
-      // Lifestyle IDs
-      if (profileData.value.drinking !== user.value?.profile?.drinking_id) {
+      // Lifestyle IDs - compare against original data
+      const currentDrinking = profileData.value.drinking;
+      const originalDrinking = originalProfileData.value.drinking;
+      if (currentDrinking !== originalDrinking) {
         profileChanges.drinking_id = profileData.value.drinking;
+        console.log(
+          "✓ Drinking changed:",
+          originalDrinking,
+          "→",
+          currentDrinking
+        );
       }
-      if (profileData.value.smoking !== user.value?.profile?.smoking_id) {
+
+      const currentSmoking = profileData.value.smoking;
+      const originalSmoking = originalProfileData.value.smoking;
+      if (currentSmoking !== originalSmoking) {
         profileChanges.smoking_id = profileData.value.smoking;
+        console.log("✓ Smoking changed:", originalSmoking, "→", currentSmoking);
       }
-      if (profileData.value.exercise !== user.value?.profile?.exercise_id) {
+
+      const currentExercise = profileData.value.exercise;
+      const originalExercise = originalProfileData.value.exercise;
+      if (currentExercise !== originalExercise) {
         profileChanges.exercise_id = profileData.value.exercise;
+        console.log(
+          "✓ Exercise changed:",
+          originalExercise,
+          "→",
+          currentExercise
+        );
       }
 
-      // Interests - array of IDs
-      const currentInterests = user.value?.profile?.interests || [];
-      if (
-        JSON.stringify(selectedInterests.value.sort()) !==
-        JSON.stringify(currentInterests.sort())
-      ) {
+      // Interests - compare against originalInterests
+      const currentInterests = [...selectedInterests.value].sort();
+      const originalInterestsArray = [...originalInterests.value].sort();
+      const interestsChanged =
+        JSON.stringify(currentInterests) !==
+        JSON.stringify(originalInterestsArray);
+      if (interestsChanged) {
         profileChanges.interests = selectedInterests.value;
+        console.log(
+          "✓ Interests changed:",
+          originalInterestsArray,
+          "→",
+          currentInterests
+        );
       }
+
+      console.log("=== END FIELD COMPARISON ===");
+      console.log("Profile field changes to save:", profileChanges);
+      console.log("Number of changes:", Object.keys(profileChanges).length);
+
+      if (Object.keys(profileChanges).length > 0) {
+        // Call profile fields API endpoint
+        const profileResponse = await fetch("/api/users/updateprofile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Include cookies for auth
+          body: JSON.stringify(profileChanges),
+        });
+
+        if (!profileResponse.ok) {
+          const errorData = await profileResponse.json();
+          throw new Error(errorData.error || "Failed to save profile changes");
+        }
+
+        const profileResult = await profileResponse.json();
+        console.log(
+          "✅ Profile field changes saved successfully! Response:",
+          profileResult
+        );
+
+        console.log("📝 Profile field changes ready for API call");
+      } else {
+        console.log(
+          "⚠️ No actual field changes detected despite hasProfileFieldChanges being true"
+        );
+      }
+    } else {
+      console.log("📝 No profile field changes detected");
     }
 
-    // Combine photo and profile changes into unified delta
-    const combinedDelta = {
-      ...photoDelta,
-      profile_fields: profileChanges,
-    };
-
-    console.log(
-      "Saving profile with combined delta:",
-      truncateBase64InObject(combinedDelta)
-    );
-
-    // Process delta to upload files first (fixes 413 Payload Too Large)
-    const processedDelta = await processDeltaWithFileUploads(combinedDelta);
-
-    // Call the upload-delta API endpoint with everything
-    const response = await fetch("/api/users/upload-delta", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        user_id: user.value?.id,
-        ...processedDelta,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to save profile changes");
-    }
-
-    const result = await response.json();
-    console.log("✅ Profile saved successfully! Response:", result);
-
-    // After successful API call, update original data and reset changes
+    // After successful operations, reset changes
+    // Always reset photo change tracking, even if no changes were uploaded
     userStore.updateOriginalData();
     userStore.resetChanges();
-    hasProfileFieldChanges.value = false;
+    // Always reset profile field changes after save operation
+    // (regardless of whether we called an actual API or not)
+    if (hasProfileFieldChanges.value) {
+      // Reset profile field changes by updating original data
+      originalProfileData.value = { ...profileData.value };
+      originalInterests.value = [...selectedInterests.value];
+      hasProfileFieldChanges.value = false;
+      console.log("🔄 Profile field original data updated after save");
 
-    console.log("✅ Profile saved successfully!");
+      // Run change detection again to make sure everything is clean
+      updateChangeStatus();
+    }
+
+    console.log("✅ Save operation completed successfully!");
+    console.log(
+      "Final state - hasProfileFieldChanges:",
+      hasProfileFieldChanges.value
+    );
+    console.log("Final state - hasUnsavedChanges:", hasUnsavedChanges.value);
+    console.log(
+      "Final state - hasAnyUnsavedChanges:",
+      hasAnyUnsavedChanges.value
+    );
     console.log("===================");
   } catch (error) {
     console.error("❌ Failed to save profile:", error);
@@ -1115,14 +1399,18 @@ const calculateAge = (dateOfBirth: string | null | undefined) => {
 
 const confirmSave = async () => {
   try {
+    // Call the exact same saveProfile function - no redundant code
     await saveProfile();
+
+    // Only close dialog and execute pending action after successful save
     showConfirmDialog.value = false;
     if (pendingCloseAction) {
       pendingCloseAction();
       pendingCloseAction = null;
     }
   } catch (error) {
-    // Error handling is already done in saveProfile
+    // Error handling is already done in saveProfile function
+    console.error("Save operation failed in dialog:", error);
   }
 };
 
@@ -1144,7 +1432,7 @@ const confirmDiscard = () => {
 
 // Handle page navigation/refresh
 const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-  if (hasUnsavedChanges.value && isComponentMounted.value) {
+  if (hasAnyUnsavedChanges.value && isComponentMounted.value) {
     event.preventDefault();
     event.returnValue =
       "You have unsaved changes to your profile. Are you sure you want to leave?";
@@ -1155,7 +1443,7 @@ const handleBeforeUnload = (event: BeforeUnloadEvent) => {
 // Override the close action to check for unsaved changes
 const originalCloseUserProfile = closeUserProfile;
 const interceptedCloseUserProfile = () => {
-  if (hasUnsavedChanges.value && isComponentMounted.value) {
+  if (hasAnyUnsavedChanges.value && isComponentMounted.value) {
     pendingCloseAction = originalCloseUserProfile;
     showConfirmDialog.value = true;
   } else {
@@ -1181,16 +1469,10 @@ onBeforeUnmount(() => {
   // Temporarily disabled: document.removeEventListener("click", closeDropdowns);
 
   // If there are unsaved changes when component is being unmounted
-  if (hasUnsavedChanges.value && isComponentMounted.value) {
+  if (hasAnyUnsavedChanges.value && isComponentMounted.value) {
     console.warn("⚠️ Profile component unmounted with unsaved changes!");
-    console.log(
-      "📝 Profile field changes:",
-      userStore.profileChanges.profile_fields_changed
-    );
-    console.log(
-      "📷 Photo changes:",
-      userStore.profileChanges.profile_photo_changed
-    );
+    console.log("📝 Profile field changes:", hasProfileFieldChanges.value);
+    console.log("📷 Photo changes:", hasUnsavedChanges.value);
     console.log(
       "Changes will be preserved in store until user returns or saves."
     );

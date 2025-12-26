@@ -7,7 +7,9 @@ import {
   getUserById,
   createUserProfile,
   uploadDelta,
+  updateProfile,
 } from "../controllers/userController";
+import { authMiddleware } from "../middlewares/authMiddleware";
 
 const router = express.Router();
 router.post("/", createUser as RequestHandler);
@@ -16,5 +18,6 @@ router.delete("/:id", deleteUser as RequestHandler);
 router.get("/:id", getUserById as RequestHandler);
 router.post("/profiles", createUserProfile as RequestHandler);
 router.post("/upload-delta", uploadDelta as RequestHandler);
+router.post("/updateprofile", authMiddleware, updateProfile as RequestHandler);
 
 export default router;

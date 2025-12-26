@@ -333,3 +333,162 @@ export const uploadDelta = async (req: Request, res: Response) => {
     client.release();
   }
 };
+
+// POST /updateprofile - update user profile fields and interests
+export const updateProfile = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Get user ID from JWT token (set by auth middleware)
+    console.log("🔍 Debug Auth Info:");
+    console.log("req.user:", req.user);
+    console.log("req.cookies:", req.cookies);
+
+    const userId = (req as any).user?.userId; // Changed from .id to .userId
+
+    const {
+      bio,
+      job_title,
+      company,
+      education,
+      height_cm,
+      drinking_id,
+      smoking_id,
+      exercise_id,
+      interests,
+    } = req.body;
+
+    console.log("=== UPDATE PROFILE OPERATION ===");
+    console.log("User ID:", userId);
+    console.log("Profile data:", {
+      bio,
+      job_title,
+      company,
+      education,
+      height_cm,
+      drinking_id,
+      smoking_id,
+      exercise_id,
+    });
+    console.log("Interests:", interests);
+
+    // 1️⃣ Update user_profiles table
+    const profileUpdateFields = [];
+    const profileUpdateValues = [];
+    let paramIndex = 1;
+
+    if (bio !== undefined) {
+      profileUpdateFields.push(`bio = $${paramIndex++}`);
+      profileUpdateValues.push(bio);
+    }
+    if (job_title !== undefined) {
+      profileUpdateFields.push(`job_title = $${paramIndex++}`);
+      profileUpdateValues.push(job_title);
+    }
+    if (company !== undefined) {
+      profileUpdateFields.push(`company = $${paramIndex++}`);
+      profileUpdateValues.push(company);
+    }
+    if (education !== undefined) {
+      profileUpdateFields.push(`education = $${paramIndex++}`);
+      profileUpdateValues.push(education);
+    }
+    if (height_cm !== undefined) {
+      profileUpdateFields.push(`height_cm = $${paramIndex++}`);
+      profileUpdateValues.push(height_cm);
+    }
+    if (drinking_id !== undefined) {
+      profileUpdateFields.push(`drinking_id = $${paramIndex++}`);
+      profileUpdateValues.push(drinking_id);
+    }
+    if (smoking_id !== undefined) {
+      profileUpdateFields.push(`smoking_id = $${paramIndex++}`);
+      profileUpdateValues.push(smoking_id);
+    }
+    if (exercise_id !== undefined) {
+      profileUpdateFields.push(`exercise_id = $${paramIndex++}`);
+      profileUpdateValues.push(exercise_id);
+    }
+
+    if (profileUpdateFields.length > 0) {
+      profileUpdateFields.push(
+        `updated_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'`
+      );
+      profileUpdateValues.push(userId);
+
+      const profileUpdateQuery = `
+        UPDATE user_profiles 
+        SET ${profileUpdateFields.join(", ")}
+        WHERE user_id = $${paramIndex}
+        RETURNING *
+      `;
+
+      console.log("📝 Updating user_profiles:", profileUpdateQuery);
+      const profileResult = await client.query(
+        profileUpdateQuery,
+        profileUpdateValues
+      );
+
+      if (profileResult.rowCount === 0) {
+        throw new Error("User profile not found");
+      }
+
+      console.log("✅ Profile updated successfully");
+    }
+
+    // 2️⃣ Update user_interests table
+    if (interests && Array.isArray(interests)) {
+      console.log("📝 Updating user interests");
+
+      // Delete existing interests
+      await client.query("DELETE FROM user_interests WHERE user_id = $1", [
+        userId,
+      ]);
+
+      // Insert new interests
+      if (interests.length > 0) {
+        const interestInsertValues = interests
+          .map((_, index) => `($1, $${index + 2})`)
+          .join(", ");
+
+        const interestInsertQuery = `
+          INSERT INTO user_interests (user_id, interest_id)
+          VALUES ${interestInsertValues}
+        `;
+
+        await client.query(interestInsertQuery, [userId, ...interests]);
+        console.log(`✅ Inserted ${interests.length} interests`);
+      } else {
+        console.log("✅ Cleared all interests (empty array provided)");
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const response = {
+      success: true,
+      message: "Profile updated successfully",
+      updates: {
+        profile_fields: profileUpdateFields.length > 0,
+        interests_updated: interests !== undefined,
+      },
+    };
+
+    console.log("✅ Update profile operation completed successfully");
+    console.log("Response:", response);
+    console.log("==============================");
+
+    res.json(response);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("❌ Update profile error:", err);
+    res.status(500).json({
+      error: "Failed to update profile",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  } finally {
+    client.release();
+  }
+};

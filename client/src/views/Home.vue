@@ -129,9 +129,6 @@ const saveAndNavigate = async () => {
     const delta = userStore.saveProfileChanges();
     console.log("Saving before navigation:", delta);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
     // Update original data and reset changes
     userStore.updateOriginalData();
     userStore.resetChanges();

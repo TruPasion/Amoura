@@ -993,6 +993,11 @@ const saveProfile = async () => {
   isSaving.value = true;
 
   try {
+    console.log("=== SAVE OPERATION ===");
+
+    // Get photo changes from store
+    const photoDelta = userStore.saveProfileChanges();
+
     // Collect profile field changes
     const profileChanges: any = {};
 
@@ -1042,29 +1047,49 @@ const saveProfile = async () => {
       }
     }
 
-    // Call store's save function for photos
-    const photoDelta = userStore.saveProfileChanges();
-
-    // Combine photo and profile changes
-    const allChanges = {
+    // Combine photo and profile changes into unified delta
+    const combinedDelta = {
       ...photoDelta,
-      ...profileChanges,
+      profile_fields: profileChanges,
     };
 
-    console.log("=== PROFILE SAVE OPERATION ===");
-    console.log("Profile changes:", profileChanges);
-    console.log("Photo changes:", photoDelta);
-    console.log("All changes to send:", allChanges);
+    console.log(
+      "Saving profile with combined delta:",
+      truncateBase64InObject(combinedDelta)
+    );
 
-    // TODO: Send allChanges to backend API
-    // For now, just logging the changes as requested
+    // Process delta to upload files first (fixes 413 Payload Too Large)
+    const processedDelta = await processDeltaWithFileUploads(combinedDelta);
 
-    // Reset change tracking
+    // Call the upload-delta API endpoint with everything
+    const response = await fetch("/api/users/upload-delta", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: user.value?.id,
+        ...processedDelta,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to save profile changes");
+    }
+
+    const result = await response.json();
+    console.log("✅ Profile saved successfully! Response:", result);
+
+    // After successful API call, update original data and reset changes
+    userStore.updateOriginalData();
+    userStore.resetChanges();
     hasProfileFieldChanges.value = false;
 
-    console.log("Profile saved successfully!");
+    console.log("✅ Profile saved successfully!");
+    console.log("===================");
   } catch (error) {
-    console.error("Error saving profile:", error);
+    console.error("❌ Failed to save profile:", error);
   } finally {
     isSaving.value = false;
   }

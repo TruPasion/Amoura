@@ -63,6 +63,36 @@ export const useActionStore = defineStore("actionStore", () => {
     showNavigationConfirm.value = false;
   };
 
+  const openFeed = () => {
+    // Check if profile is open and has unsaved changes
+    if (openProfile.value) {
+      // Import user store dynamically to avoid circular dependency
+      import("./user").then(({ useUserStore }) => {
+        const userStore = useUserStore();
+        if (userStore.hasUnsavedChanges) {
+          // Store the pending navigation
+          pendingNavigation.value = () => {
+            openProfile.value = false;
+            openchat.value = false;
+            chatUser.value = null;
+          };
+          showNavigationConfirm.value = true;
+          return;
+        } else {
+          // No unsaved changes, proceed normally
+          openProfile.value = false;
+          openchat.value = false;
+          chatUser.value = null;
+        }
+      });
+    } else {
+      // Profile not open, proceed normally
+      openProfile.value = false;
+      openchat.value = false;
+      chatUser.value = null;
+    }
+  };
+
   // Navigation confirmation actions
   const confirmNavigation = () => {
     if (pendingNavigation.value) {
@@ -110,6 +140,7 @@ export const useActionStore = defineStore("actionStore", () => {
     closeChat,
     openUserProfile,
     closeUserProfile,
+    openFeed,
     confirmNavigation,
     cancelNavigation,
     discardAndNavigate,

@@ -102,42 +102,54 @@ export async function getMeHandler(req: Request, res: Response) {
     const userProfile = await pool.query(
       `
   SELECT
-    up.*,
+  up.*,
 
-    -- primary profile photo (single JSON object)
+  -- interests (array of interest IDs, max 5)
+  COALESCE(
     (
-      SELECT JSON_BUILD_OBJECT(
-        'id', upp.id,
-        'image_url', upp.image_url,
-        'is_primary', upp.is_primary,
-        'position', upp.position
+      SELECT JSON_AGG(ui.interest_id ORDER BY ui.interest_id)
+      FROM user_interests ui
+      WHERE ui.user_id = up.user_id
+      LIMIT 5
+    ),
+    '[]'
+  ) AS interests,
+
+  -- primary profile photo
+  (
+    SELECT JSON_BUILD_OBJECT(
+      'id', upp.id,
+      'image_url', upp.image_url,
+      'is_primary', upp.is_primary,
+      'position', upp.position
+    )
+    FROM user_profile_pictures upp
+    WHERE upp.user_id = up.user_id
+      AND upp.is_primary = true
+    LIMIT 1
+  ) AS profile_photo,
+
+  -- all photos
+  COALESCE(
+    (
+      SELECT JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', upp.id,
+          'image_url', upp.image_url,
+          'is_primary', upp.is_primary,
+          'position', upp.position
+        )
+        ORDER BY upp.position
       )
       FROM user_profile_pictures upp
       WHERE upp.user_id = up.user_id
-        AND upp.is_primary = true
-      LIMIT 1
-    ) AS profile_photo,
+    ),
+    '[]'
+  ) AS photos
 
-    -- all photos (array of JSON objects)
-    COALESCE(
-      (
-        SELECT JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', upp.id,
-            'image_url', upp.image_url,
-            'is_primary', upp.is_primary,
-            'position', upp.position
-          )
-          ORDER BY upp.position
-        )
-        FROM user_profile_pictures upp
-        WHERE upp.user_id = up.user_id
-      ),
-      '[]'
-    ) AS photos
+FROM user_profiles up
+WHERE up.user_id = $1;
 
-  FROM user_profiles up
-  WHERE up.user_id = $1
   `,
       [user.rows[0].id]
     );

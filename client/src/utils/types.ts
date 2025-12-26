@@ -16,6 +16,15 @@ export interface UserProfile {
   location_access: boolean;
   created_at: string; // ISO 8601 date string
   updated_at: string; // ISO 8601 date string
+  bio: string | null;
+  height_cm: number | null;
+  job_title: string | null;
+  company: string | null;
+  education: string | null;
+  drinking_id: number | null;
+  smoking_id: number | null;
+  exercise_id: number | null;
+  interests: number[];
   profile_photo?: PhotoObject; // Primary photo object
   photos: PhotoObject[]; // Array of photo objects
 }

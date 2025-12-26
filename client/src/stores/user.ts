@@ -19,16 +19,41 @@ export const useUserStore = defineStore("user", () => {
   const originalData = ref<{
     profile_photo: PhotoObject | null;
     photos: PhotoObject[];
+    profile_fields: {
+      bio: string | null;
+      job_title: string | null;
+      company: string | null;
+      education: string | null;
+      height_cm: number | null;
+      drinking_id: number | null;
+      smoking_id: number | null;
+      exercise_id: number | null;
+      interests: number[];
+    };
   } | null>(null);
 
   const profileChanges = ref<{
     profile_photo_changed: boolean;
     added_photos: PhotoObject[];
     deleted_photos: PhotoObject[];
+    profile_fields_changed: boolean;
+    field_changes: {
+      bio?: string | null;
+      job_title?: string | null;
+      company?: string | null;
+      education?: string | null;
+      height_cm?: number | null;
+      drinking_id?: number | null;
+      smoking_id?: number | null;
+      exercise_id?: number | null;
+      interests?: number[];
+    };
   }>({
     profile_photo_changed: false,
     added_photos: [],
     deleted_photos: [],
+    profile_fields_changed: false,
+    field_changes: {},
   });
 
   // Counter for generating unique IDs for new photos
@@ -38,7 +63,8 @@ export const useUserStore = defineStore("user", () => {
     return (
       profileChanges.value.profile_photo_changed ||
       profileChanges.value.added_photos.length > 0 ||
-      profileChanges.value.deleted_photos.length > 0
+      profileChanges.value.deleted_photos.length > 0 ||
+      profileChanges.value.profile_fields_changed
     );
   });
 
@@ -108,6 +134,17 @@ export const useUserStore = defineStore("user", () => {
         photos: u.profile.photos
           ? u.profile.photos.map((photo) => ({ ...photo }))
           : [],
+        profile_fields: {
+          bio: u.profile.bio,
+          job_title: u.profile.job_title,
+          company: u.profile.company,
+          education: u.profile.education,
+          height_cm: u.profile.height_cm,
+          drinking_id: u.profile.drinking_id,
+          smoking_id: u.profile.smoking_id,
+          exercise_id: u.profile.exercise_id,
+          interests: [...(u.profile.interests || [])],
+        },
       };
     }
 
@@ -341,6 +378,8 @@ export const useUserStore = defineStore("user", () => {
       profile_photo_changed: false,
       added_photos: [],
       deleted_photos: [],
+      profile_fields_changed: false,
+      field_changes: {},
     };
   }
 
@@ -355,6 +394,18 @@ export const useUserStore = defineStore("user", () => {
       user.value.profile.photos = originalData.value.photos.map((photo) => ({
         ...photo,
       }));
+
+      // Revert profile fields
+      const fields = originalData.value.profile_fields;
+      user.value.profile.bio = fields.bio;
+      user.value.profile.job_title = fields.job_title;
+      user.value.profile.company = fields.company;
+      user.value.profile.education = fields.education;
+      user.value.profile.height_cm = fields.height_cm;
+      user.value.profile.drinking_id = fields.drinking_id;
+      user.value.profile.smoking_id = fields.smoking_id;
+      user.value.profile.exercise_id = fields.exercise_id;
+      user.value.profile.interests = [...fields.interests];
 
       // Reset change tracking
       resetChanges();
@@ -410,8 +461,71 @@ export const useUserStore = defineStore("user", () => {
         photos: user.value.profile.photos
           ? user.value.profile.photos.map((photo) => ({ ...photo }))
           : [],
+        profile_fields: {
+          bio: user.value.profile.bio,
+          job_title: user.value.profile.job_title,
+          company: user.value.profile.company,
+          education: user.value.profile.education,
+          height_cm: user.value.profile.height_cm,
+          drinking_id: user.value.profile.drinking_id,
+          smoking_id: user.value.profile.smoking_id,
+          exercise_id: user.value.profile.exercise_id,
+          interests: [...(user.value.profile.interests || [])],
+        },
       };
     }
+  }
+
+  // Profile field update functions
+  function updateProfileField(
+    field: keyof NonNullable<typeof originalData.value>['profile_fields'],
+    value: any
+  ) {
+    if (!user.value?.profile || !originalData.value?.profile_fields) return;
+
+    const originalValue = originalData.value.profile_fields[field];
+
+    // Update the profile field
+    (user.value.profile as any)[field] = value;
+
+    // Track changes
+    if (JSON.stringify(value) !== JSON.stringify(originalValue)) {
+      (profileChanges.value.field_changes as any)[field] = value;
+      profileChanges.value.profile_fields_changed = true;
+    } else {
+      // Remove from changes if reverted to original
+      delete (profileChanges.value.field_changes as any)[field];
+      profileChanges.value.profile_fields_changed =
+        Object.keys(profileChanges.value.field_changes).length > 0;
+    }
+
+    console.log(`📝 Profile field '${field}' updated:`, value);
+    console.log("📊 Current changes:", profileChanges.value.field_changes);
+  }
+
+  function updateProfileInterests(interests: number[]) {
+    if (!user.value?.profile || !originalData.value?.profile_fields) return;
+
+    const originalInterests = originalData.value.profile_fields.interests;
+
+    // Update interests
+    user.value.profile.interests = [...interests];
+
+    // Track changes
+    if (
+      JSON.stringify(interests.sort()) !==
+      JSON.stringify(originalInterests.sort())
+    ) {
+      profileChanges.value.field_changes.interests = interests;
+      profileChanges.value.profile_fields_changed = true;
+    } else {
+      // Remove from changes if reverted to original
+      delete profileChanges.value.field_changes.interests;
+      profileChanges.value.profile_fields_changed =
+        Object.keys(profileChanges.value.field_changes).length > 0;
+    }
+
+    console.log("🌟 Interests updated:", interests);
   }
 
   return {
@@ -444,6 +558,8 @@ export const useUserStore = defineStore("user", () => {
     revertToOriginalData,
     saveProfileChanges,
     updateOriginalData,
+    updateProfileField,
+    updateProfileInterests,
     nextPhotoId,
   };
 });

@@ -80,7 +80,7 @@
       <div class="flex h-full">
         <!-- Left Side - Photo Grid -->
         <div class="w-2/5 p-6 border-r border-gray-200">
-          <PhotoGrid @has-changes="handleChanges" />
+          <PhotoGrid />
         </div>
 
         <!-- Right Side - Profile Info -->
@@ -147,7 +147,12 @@
                   <div class="relative">
                     <textarea
                       v-model="profileData.bio"
-                      @input="handleProfileFieldChange"
+                      @input="
+                        handleInputChange(
+                          'bio',
+                          ($event.target as HTMLTextAreaElement)?.value
+                        )
+                      "
                       placeholder="Adventure seeker and coffee enthusiast ☕ Always planning my next trip or trying a new restaurant. Looking for someone to share spontaneous adventures with!"
                       rows="4"
                       maxlength="500"
@@ -175,7 +180,12 @@
                 </label>
                 <input
                   v-model="profileData.jobTitle"
-                  @input="handleProfileFieldChange"
+                  @input="
+                    handleInputChange(
+                      'jobTitle',
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
                   type="text"
                   placeholder="Product Designer"
                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-400"
@@ -192,7 +202,12 @@
                 </label>
                 <input
                   v-model="profileData.company"
-                  @input="handleProfileFieldChange"
+                  @input="
+                    handleInputChange(
+                      'company',
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
                   type="text"
                   placeholder="Spotify"
                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-400"
@@ -209,7 +224,12 @@
                 </label>
                 <input
                   v-model="profileData.education"
-                  @input="handleProfileFieldChange"
+                  @input="
+                    handleInputChange(
+                      'education',
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
                   type="text"
                   placeholder="Stanford University"
                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder-gray-400"
@@ -226,7 +246,11 @@
                 </label>
                 <select
                   v-model="profileData.height"
-                  @change="handleProfileFieldChange"
+                  @change="
+                    handleHeightChange(
+                      ($event.target as HTMLSelectElement).value
+                    )
+                  "
                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 >
                   <option value="">Select height</option>
@@ -581,7 +605,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeUnmount, onMounted } from "vue";
+import {
+  ref,
+  onBeforeUnmount,
+  onMounted,
+  watch,
+  computed,
+  nextTick,
+} from "vue";
 import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
 import { useActionStore } from "../../stores/actionStore";
@@ -631,32 +662,125 @@ const isResettingMatches = ref(false);
 let pendingCloseAction: (() => void) | null = null;
 let isComponentMounted = ref(true);
 
-// Profile form data - store IDs for backend communication
+// Simple reactive refs for form data - no computed setters to avoid loops
 const profileData = ref({
   bio: "",
   jobTitle: "",
   company: "",
   education: "",
-  height: "", // Will be converted to cm when saving
-  drinking: null as number | null, // Store ID
-  smoking: null as number | null, // Store ID
-  exercise: null as number | null, // Store ID
+  height: "",
+  drinking: null as number | null,
+  smoking: null as number | null,
+  exercise: null as number | null,
 });
 
-// Interests data - store IDs for backend communication
 const selectedInterests = ref<number[]>([]);
 
-// Interests functionality
-const toggleInterest = (interestId: number) => {
-  const index = selectedInterests.value.indexOf(interestId);
+// =============================================================================
+// FORM INPUT HANDLERS
+// =============================================================================
+
+const handleInputChange = (field: string, value: string) => {
+  (profileData.value as any)[field] = value;
+  userStore.updateProfileField(field as any, value || null);
+  updateChangeStatus(); // Manually trigger change detection
+};
+
+const handleHeightChange = (value: string) => {
+  profileData.value.height = value;
+  const heightCm = convertHeightToCm(value);
+  userStore.updateProfileField("height_cm", heightCm);
+  updateChangeStatus(); // Manually trigger change detection
+};
+
+const handleDropdownSelect = (field: string, optionId: number) => {
+  (profileData.value as any)[field] = optionId;
+  userStore.updateProfileField(`${field}_id` as any, optionId);
+  activeDropdown.value = "";
+  updateChangeStatus(); // Manually trigger change detection
+};
+
+const handleInterestToggle = (interestId: number) => {
+  const currentInterests = [...selectedInterests.value];
+  const index = currentInterests.indexOf(interestId);
+
   if (index > -1) {
-    // Remove if already selected
-    selectedInterests.value.splice(index, 1);
-  } else if (selectedInterests.value.length < MAX_INTERESTS) {
-    // Add if under limit
-    selectedInterests.value.push(interestId);
+    currentInterests.splice(index, 1);
+    console.log(`➖ Removed interest: ${getInterestLabel(interestId)}`);
+  } else if (currentInterests.length < MAX_INTERESTS) {
+    currentInterests.push(interestId);
+    console.log(`➕ Added interest: ${getInterestLabel(interestId)}`);
+  } else {
+    console.log(`⚠️ Maximum ${MAX_INTERESTS} interests reached`);
+    return;
   }
-  handleProfileFieldChange();
+
+  selectedInterests.value = currentInterests;
+  userStore.updateProfileInterests(currentInterests);
+  updateChangeStatus(); // Manually trigger change detection
+};
+// Initialize form data from store when component mounts
+const initializeProfileData = () => {
+  if (user.value?.profile) {
+    const profile = user.value.profile;
+
+    // Convert height_cm back to display format if it exists
+    let heightDisplay = "";
+    if (profile.height_cm) {
+      // Find matching height option by cm value
+      const matchingHeight = heightOptions.find(
+        (h) => convertHeightToCm(h) === profile.height_cm
+      );
+      heightDisplay = matchingHeight || "";
+    }
+
+    profileData.value = {
+      bio: profile.bio || "",
+      jobTitle: profile.job_title || "",
+      company: profile.company || "",
+      education: profile.education || "",
+      height: heightDisplay,
+      drinking: profile.drinking_id,
+      smoking: profile.smoking_id,
+      exercise: profile.exercise_id,
+    };
+    selectedInterests.value = [...(profile.interests || [])];
+  }
+};
+
+// Call initialization when user data is available
+onMounted(() => {
+  console.log("🚀 UserProfile component mounted");
+  initializeProfileData();
+});
+
+// Watch for changes in user data to reinitialize
+watch(
+  () => user.value?.profile,
+  () => {
+    if (user.value?.profile) {
+      console.log("🔄 User profile data changed, reinitializing...");
+      initializeProfileData();
+    }
+  },
+  { deep: true }
+);
+
+// =============================================================================
+// DEBUG UTILITIES (Development only)
+// =============================================================================
+
+// Debug function to log current state
+const logCurrentState = () => {
+  console.group("📊 Profile Component State");
+  console.log("Current data:", profileData.value);
+  console.log("Original data:", originalProfileData.value);
+  console.log("Selected interests:", selectedInterests.value);
+  console.log("Original interests:", originalInterests.value);
+  console.log("Has profile changes:", hasProfileFieldChanges.value);
+  console.log("Has photo changes:", hasUnsavedChanges.value);
+  console.log("Has any changes:", hasAnyUnsavedChanges.value);
+  console.groupEnd();
 };
 
 // Helper functions to get display text
@@ -671,8 +795,74 @@ const getInterestLabel = (id: number): string => {
   return interest ? interest.label : "";
 };
 
+// =============================================================================
+// CHANGE DETECTION SYSTEM
+// =============================================================================
+
 // Track if profile fields have changed
 const hasProfileFieldChanges = ref(false);
+
+// Store original values for comparison
+const originalProfileData = ref({
+  bio: "",
+  jobTitle: "",
+  company: "",
+  education: "",
+  height: "",
+  drinking: null as number | null,
+  smoking: null as number | null,
+  exercise: null as number | null,
+});
+const originalInterests = ref<number[]>([]);
+
+// Computed property for combined changes (photos + profile fields)
+const hasAnyUnsavedChanges = computed(() => {
+  return hasUnsavedChanges.value || hasProfileFieldChanges.value;
+});
+
+// Deep comparison utility for change detection
+const hasProfileDataChanged = (): boolean => {
+  // Compare basic fields
+  const dataChanged =
+    profileData.value.bio !== originalProfileData.value.bio ||
+    profileData.value.jobTitle !== originalProfileData.value.jobTitle ||
+    profileData.value.company !== originalProfileData.value.company ||
+    profileData.value.education !== originalProfileData.value.education ||
+    profileData.value.height !== originalProfileData.value.height ||
+    profileData.value.drinking !== originalProfileData.value.drinking ||
+    profileData.value.smoking !== originalProfileData.value.smoking ||
+    profileData.value.exercise !== originalProfileData.value.exercise;
+
+  // Compare interests arrays
+  const interestsChanged =
+    JSON.stringify([...selectedInterests.value].sort()) !==
+    JSON.stringify([...originalInterests.value].sort());
+
+  return dataChanged || interestsChanged;
+};
+
+// Reactive change detection
+const updateChangeStatus = () => {
+  const hasChanges = hasProfileDataChanged();
+  if (hasProfileFieldChanges.value !== hasChanges) {
+    hasProfileFieldChanges.value = hasChanges;
+    console.log(`📝 Profile changes detected: ${hasChanges}`);
+  }
+};
+
+// Function removed - now using specific input handlers
+
+// Watch for changes - Temporarily disabled to prevent recursive updates
+// The handlers now directly call store methods, so this watch might not be needed
+/*
+watch(
+  [profileData, selectedInterests],
+  () => {
+    updateChangeStatus();
+  },
+  { deep: true }
+);
+*/
 
 // Dropdown state
 const activeDropdown = ref("");
@@ -684,32 +874,11 @@ const toggleDropdown = (field: string) => {
 };
 
 const selectOption = (field: string, optionId: number) => {
-  console.log("Selecting option:", optionId, "for field:", field);
-  (profileData.value as any)[field] = optionId;
-  activeDropdown.value = "";
-  handleProfileFieldChange();
-  console.log("Updated profileData:", profileData.value);
+  handleDropdownSelect(field, optionId);
 };
 
-// Close dropdown when clicking outside
-const closeDropdowns = (event?: Event) => {
-  // Don't close if clicking on dropdown elements
-  if (event?.target && (event.target as Element).closest(".relative")) {
-    return;
-  }
-  activeDropdown.value = "";
-};
-
-const handleProfileFieldChange = () => {
-  hasProfileFieldChanges.value = true;
-  // This will trigger the save button to appear
-  console.log("Profile field changed:", profileData.value);
-};
-
-const handleChanges = (hasChanges: boolean) => {
-  // This is handled automatically by the store now
-  // but we keep this handler in case we need additional logic
-  console.log("Profile has unsaved changes:", hasChanges);
+const toggleInterest = (interestId: number) => {
+  handleInterestToggle(interestId);
 };
 
 // Helper function to truncate base64 URLs for cleaner console output
@@ -747,7 +916,6 @@ const truncateBase64InObject = (obj: any): any => {
 const closeProfile = () => {
   if (hasUnsavedChanges.value) {
     pendingCloseAction = () => {
-      // Force close by directly setting the state
       actionStore.openProfile = false;
     };
     showConfirmDialog.value = true;
@@ -820,48 +988,83 @@ const processDeltaWithFileUploads = async (delta: any) => {
 // Photo handlers are now managed in PhotoGrid via the store
 
 const saveProfile = async () => {
-  if (!hasUnsavedChanges.value) return;
+  if (!hasAnyUnsavedChanges.value) return;
 
   isSaving.value = true;
 
   try {
-    // Call store's save function which logs the delta
-    const delta = userStore.saveProfileChanges();
+    // Collect profile field changes
+    const profileChanges: any = {};
 
-    console.log("=== SAVE OPERATION ===");
-    console.log("Saving profile with delta:", truncateBase64InObject(delta));
+    if (hasProfileFieldChanges.value) {
+      // Text fields
+      if (profileData.value.bio !== (user.value?.profile?.bio || "")) {
+        profileChanges.bio = profileData.value.bio;
+      }
+      if (
+        profileData.value.jobTitle !== (user.value?.profile?.job_title || "")
+      ) {
+        profileChanges.job_title = profileData.value.jobTitle;
+      }
+      if (profileData.value.company !== (user.value?.profile?.company || "")) {
+        profileChanges.company = profileData.value.company;
+      }
+      if (
+        profileData.value.education !== (user.value?.profile?.education || "")
+      ) {
+        profileChanges.education = profileData.value.education;
+      }
 
-    // Process delta to upload files first
-    const processedDelta = await processDeltaWithFileUploads(delta);
+      // Height - convert to cm
+      const heightCm = convertHeightToCm(profileData.value.height);
+      if (heightCm !== user.value?.profile?.height_cm) {
+        profileChanges.height_cm = heightCm;
+      }
 
-    // Call the upload-delta API endpoint
-    const response = await fetch("/api/users/upload-delta", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        user_id: user.value?.id,
-        ...processedDelta,
-      }),
-    });
+      // Lifestyle IDs
+      if (profileData.value.drinking !== user.value?.profile?.drinking_id) {
+        profileChanges.drinking_id = profileData.value.drinking;
+      }
+      if (profileData.value.smoking !== user.value?.profile?.smoking_id) {
+        profileChanges.smoking_id = profileData.value.smoking;
+      }
+      if (profileData.value.exercise !== user.value?.profile?.exercise_id) {
+        profileChanges.exercise_id = profileData.value.exercise;
+      }
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to save profile changes");
+      // Interests - array of IDs
+      const currentInterests = user.value?.profile?.interests || [];
+      if (
+        JSON.stringify(selectedInterests.value.sort()) !==
+        JSON.stringify(currentInterests.sort())
+      ) {
+        profileChanges.interests = selectedInterests.value;
+      }
     }
 
-    const result = await response.json();
-    console.log("✅ Profile saved successfully! Response:", result);
+    // Call store's save function for photos
+    const photoDelta = userStore.saveProfileChanges();
 
-    // After successful API call, update original data and reset changes
-    userStore.updateOriginalData();
-    userStore.resetChanges();
+    // Combine photo and profile changes
+    const allChanges = {
+      ...photoDelta,
+      ...profileChanges,
+    };
 
-    console.log("✅ Profile saved successfully!");
-    console.log("===================");
+    console.log("=== PROFILE SAVE OPERATION ===");
+    console.log("Profile changes:", profileChanges);
+    console.log("Photo changes:", photoDelta);
+    console.log("All changes to send:", allChanges);
+
+    // TODO: Send allChanges to backend API
+    // For now, just logging the changes as requested
+
+    // Reset change tracking
+    hasProfileFieldChanges.value = false;
+
+    console.log("Profile saved successfully!");
   } catch (error) {
-    console.error("❌ Failed to save profile:", error);
+    console.error("Error saving profile:", error);
   } finally {
     isSaving.value = false;
   }
@@ -899,12 +1102,19 @@ const confirmSave = async () => {
 };
 
 const confirmDiscard = () => {
+  console.log("🗑️ Discarding all changes...");
+
+  // Use store's revert function which handles both photos and profile fields
   userStore.revertToOriginalData();
+
   showConfirmDialog.value = false;
+
   if (pendingCloseAction) {
     pendingCloseAction();
     pendingCloseAction = null;
   }
+
+  console.log("✅ All changes discarded");
 };
 
 // Handle page navigation/refresh
@@ -912,7 +1122,7 @@ const handleBeforeUnload = (event: BeforeUnloadEvent) => {
   if (hasUnsavedChanges.value && isComponentMounted.value) {
     event.preventDefault();
     event.returnValue =
-      "You have unsaved changes. Are you sure you want to leave?";
+      "You have unsaved changes to your profile. Are you sure you want to leave?";
     return event.returnValue;
   }
 };
@@ -946,8 +1156,16 @@ onBeforeUnmount(() => {
   // Temporarily disabled: document.removeEventListener("click", closeDropdowns);
 
   // If there are unsaved changes when component is being unmounted
-  if (hasUnsavedChanges.value) {
+  if (hasUnsavedChanges.value && isComponentMounted.value) {
     console.warn("⚠️ Profile component unmounted with unsaved changes!");
+    console.log(
+      "📝 Profile field changes:",
+      userStore.profileChanges.profile_fields_changed
+    );
+    console.log(
+      "📷 Photo changes:",
+      userStore.profileChanges.profile_photo_changed
+    );
     console.log(
       "Changes will be preserved in store until user returns or saves."
     );

@@ -22,9 +22,20 @@
             </p>
           </div>
         </div>
-        <button @click="closeChat" class="text-gray-500 hover:text-gray-800">
-          <X class="w-5 h-5" />
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            @click="showDeleteDialog = true"
+            class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-all duration-200"
+          >
+            <Trash2 class="w-5 h-5" />
+          </button>
+          <button
+            @click="closeChat"
+            class="text-gray-500 hover:text-gray-800 p-2 rounded-full transition-all duration-200"
+          >
+            <X class="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <!-- Chat Messages Area -->
@@ -130,6 +141,64 @@
         </button>
       </div>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <div
+      v-if="showDeleteDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click.self="showDeleteDialog = false"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out scale-100"
+      >
+        <!-- Dialog Header -->
+        <div class="p-6 pb-4">
+          <div class="flex items-center justify-center mb-4">
+            <div
+              class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center"
+            >
+              <AlertTriangle class="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 text-center mb-2">
+            Delete Conversation?
+          </h3>
+          <p class="text-gray-600 text-center text-sm leading-relaxed">
+            This will permanently delete your conversation with
+            <strong>{{ props.chatUser.full_name }}</strong
+            >. Messages will be deleted on both sides and cannot be recovered.
+          </p>
+        </div>
+
+        <!-- Dialog Actions -->
+        <div class="px-6 pb-6">
+          <div class="flex flex-col gap-3">
+            <!-- Delete Button -->
+            <button
+              @click="confirmDeleteChat"
+              :disabled="isDeleting"
+              class="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <Trash2 class="w-5 h-5" v-if="!isDeleting" />
+              <div
+                class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
+                v-else
+              />
+              {{ isDeleting ? "Deleting..." : "Delete Conversation" }}
+            </button>
+
+            <!-- Cancel Button -->
+            <button
+              @click="showDeleteDialog = false"
+              :disabled="isDeleting"
+              class="w-full text-gray-500 hover:text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </template>
 </template>
 
@@ -149,7 +218,7 @@ import { useChatStore } from "../../stores/chatStore";
 import { useUserStore } from "../../stores/user";
 
 import { storeToRefs } from "pinia";
-import { X } from "lucide-vue-next";
+import { X, Trash2, AlertTriangle } from "lucide-vue-next";
 
 const userStore = useUserStore();
 const { user } = storeToRefs(userStore);
@@ -165,6 +234,8 @@ const { closeChat } = actionStore;
 
 // Message related refs
 const messageInput = ref("");
+const showDeleteDialog = ref(false);
+const isDeleting = ref(false);
 const messages = computed(() => {
   const userId = props.chatUser.user_id;
   if (!userId || !props.chatUser) return [];
@@ -184,6 +255,26 @@ watch(
   },
   { immediate: false }
 );
+
+// Delete chat functions
+const confirmDeleteChat = async () => {
+  if (isDeleting.value) return;
+
+  isDeleting.value = true;
+  try {
+    // Add your chat deletion API call here
+    console.log("Deleting chat with user:", props.chatUser.user_id);
+    // Example: await chatStore.deleteConversation(props.chatUser.user_id);
+
+    // Close the dialog and chat
+    showDeleteDialog.value = false;
+    closeChat();
+  } catch (error) {
+    console.error("Failed to delete chat:", error);
+  } finally {
+    isDeleting.value = false;
+  }
+};
 
 // Group messages by date
 const groupedMessages = computed(() => {

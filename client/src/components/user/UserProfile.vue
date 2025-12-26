@@ -192,6 +192,102 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Account Dialog -->
+    <div
+      v-if="showDeleteAccountDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click.self="showDeleteAccountDialog = false"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out scale-100"
+      >
+        <!-- Dialog Header -->
+        <div class="p-6 pb-4">
+          <div class="flex items-center justify-center mb-4">
+            <div
+              class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center"
+            >
+              <AlertTriangle class="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 text-center mb-2">
+            Account Options
+          </h3>
+          <p class="text-gray-600 text-center text-sm leading-relaxed">
+            Choose what you'd like to do with your account. Both actions are
+            permanent and cannot be undone.
+          </p>
+        </div>
+
+        <!-- Dialog Actions -->
+        <div class="px-6 pb-6">
+          <div class="flex flex-col gap-3">
+            <!-- Delete Account Button -->
+            <button
+              @click="confirmDeleteAccount"
+              :disabled="isDeletingAccount || isResettingMatches"
+              class="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <Trash2 class="w-5 h-5" v-if="!isDeletingAccount" />
+              <div
+                class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
+                v-else
+              />
+              {{
+                isDeletingAccount ? "Deleting..." : "Delete Account Permanently"
+              }}
+            </button>
+
+            <!-- Delete Account Info -->
+            <p class="text-xs text-gray-500 text-center -mt-2 mb-2">
+              Account will be deactivated with a 10-day cooldown period
+            </p>
+
+            <!-- Reset Matches Button -->
+            <button
+              @click="confirmResetMatches"
+              :disabled="isDeletingAccount || isResettingMatches"
+              class="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            >
+              <svg
+                class="w-5 h-5"
+                v-if="!isResettingMatches"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              <div
+                class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
+                v-else
+              />
+              {{ isResettingMatches ? "Resetting..." : "Reset Matches Only" }}
+            </button>
+
+            <!-- Reset Info -->
+            <p class="text-xs text-gray-500 text-center -mt-2 mb-2">
+              Clear all your matches and start fresh
+            </p>
+
+            <!-- Cancel Button -->
+            <button
+              @click="showDeleteAccountDialog = false"
+              :disabled="isDeletingAccount || isResettingMatches"
+              class="w-full text-gray-500 hover:text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -212,6 +308,9 @@ const { closeUserProfile } = actionStore;
 // Local state for managing changes
 const isSaving = ref(false);
 const showConfirmDialog = ref(false);
+const showDeleteAccountDialog = ref(false);
+const isDeletingAccount = ref(false);
+const isResettingMatches = ref(false);
 let pendingCloseAction: (() => void) | null = null;
 let isComponentMounted = ref(true);
 
@@ -468,7 +567,44 @@ onBeforeUnmount(() => {
 });
 
 const deleteAccount = () => {
-  console.log("Delete account functionality - I will add logic later");
+  showDeleteAccountDialog.value = true;
+};
+
+// Delete account dialog functions
+const confirmDeleteAccount = async () => {
+  if (isDeletingAccount.value) return;
+
+  isDeletingAccount.value = true;
+  try {
+    console.log("Deleting account permanently with 10-day cooldown");
+    // Add your delete account API call here
+    // Example: await userStore.deleteAccount();
+
+    showDeleteAccountDialog.value = false;
+    // Handle account deletion success (maybe redirect to login)
+  } catch (error) {
+    console.error("Failed to delete account:", error);
+  } finally {
+    isDeletingAccount.value = false;
+  }
+};
+
+const confirmResetMatches = async () => {
+  if (isResettingMatches.value) return;
+
+  isResettingMatches.value = true;
+  try {
+    console.log("Resetting user matches");
+    // Add your reset matches API call here
+    // Example: await userStore.resetMatches();
+
+    showDeleteAccountDialog.value = false;
+    // Handle reset success
+  } catch (error) {
+    console.error("Failed to reset matches:", error);
+  } finally {
+    isResettingMatches.value = false;
+  }
 };
 </script>
 

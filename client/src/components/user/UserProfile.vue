@@ -677,7 +677,7 @@ const profileData = ref({
 const selectedInterests = ref<number[]>([]);
 
 // =============================================================================
-// FORM INPUT HANDLERS
+
 // =============================================================================
 
 // Map camelCase form fields to snake_case backend fields
@@ -1112,11 +1112,12 @@ const uploadBase64AsFile = async (base64Data: string): Promise<string> => {
 // Process delta to upload base64 images first
 const processDeltaWithFileUploads = async (delta: any) => {
   const processedDelta = { ...delta };
-
+  let dup = "";
   // Process profile photo change
   if (
     processedDelta.profile_photo_change?.image_url?.startsWith("data:image/")
   ) {
+    dup = processedDelta.profile_photo_change.image_url;
     console.log("Uploading profile photo...");
     processedDelta.profile_photo_change.image_url = await uploadBase64AsFile(
       processedDelta.profile_photo_change.image_url
@@ -1132,6 +1133,14 @@ const processDeltaWithFileUploads = async (delta: any) => {
     for (const photo of processedDelta.added_photos) {
       if (photo.image_url?.startsWith("data:image/")) {
         console.log(`Uploading added photo at position ${photo.position}...`);
+        if (photo.image_url === dup) {
+          photo.image_url = processedDelta.profile_photo_change.image_url;
+          console.log(
+            "✅ Reused uploaded profile photo for added photo:",
+            photo.image_url
+          );
+          continue;
+        }
         photo.image_url = await uploadBase64AsFile(photo.image_url);
         console.log("✅ Added photo uploaded:", photo.image_url);
       }
@@ -1188,6 +1197,54 @@ const saveProfile = async () => {
 
       const result = await response.json();
       console.log("✅ Photo changes saved successfully! Response:", result);
+
+      // The upload-delta response contains the changes but not the full updated profile
+      // We need to manually sync the user profile with the changes returned from server
+      if (result.data) {
+        // Update profile photo if it was changed
+        if (result.data.updated_profile_photo && user.value?.profile) {
+          user.value.profile.profile_photo = result.data.updated_profile_photo;
+        }
+
+        // Update photos array by replacing temporary photos with server photos
+        if (user.value?.profile?.photos) {
+          // Remove deleted photos by their IDs
+          if (
+            result.data.deleted_photo_ids &&
+            result.data.deleted_photo_ids.length > 0
+          ) {
+            user.value.profile.photos = user.value.profile.photos.filter(
+              (photo) => !result.data.deleted_photo_ids.includes(photo.id)
+            );
+          }
+
+          // Replace uploaded photos (remove temporary ones and add server ones)
+          if (
+            result.data.uploaded_photos &&
+            result.data.uploaded_photos.length > 0
+          ) {
+            // Remove temporary photos (those without proper database IDs or with blob URLs)
+            user.value.profile.photos = user.value.profile.photos.filter(
+              (photo) => {
+                // Keep photos that have real database IDs and aren't blob URLs
+                return (
+                  photo.id &&
+                  typeof photo.id === "number" &&
+                  photo.id > 0 &&
+                  photo.image_url &&
+                  !photo.image_url.startsWith("blob:")
+                );
+              }
+            );
+
+            // Add the proper photos from server
+            user.value.profile.photos.push(...result.data.uploaded_photos);
+            console.log("🔄 Replaced temporary photos with server photos");
+          }
+        }
+      }
+
+      console.log("🔄 User profile synced with server changes");
     } else {
       console.log("📸 No photo changes detected, skipping /upload-delta");
     }
@@ -1348,6 +1405,7 @@ const saveProfile = async () => {
     // Always reset photo change tracking, even if no changes were uploaded
     userStore.updateOriginalData();
     userStore.resetChanges();
+
     // Always reset profile field changes after save operation
     // (regardless of whether we called an actual API or not)
     if (hasProfileFieldChanges.value) {
@@ -1360,6 +1418,12 @@ const saveProfile = async () => {
       // Run change detection again to make sure everything is clean
       updateChangeStatus();
     }
+
+    // Force a state refresh to ensure proper synchronization
+    // This ensures that any newly uploaded photos are properly reflected in the original state
+    // so that subsequent deletions are correctly tracked as changes
+    await nextTick();
+    userStore.updateOriginalData();
 
     console.log("✅ Save operation completed successfully!");
     console.log(

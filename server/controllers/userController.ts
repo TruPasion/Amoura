@@ -161,11 +161,8 @@ export const uploadDelta = async (req: Request, res: Response) => {
 
     await client.query("BEGIN");
 
-    console.log("=== UPLOAD DELTA OPERATION ===");
-    console.log("User ID:", user_id);
-    console.log("Profile photo change:", !!profile_photo_change);
-    console.log("Added photos:", added_photos.length);
-    console.log("Deleted photos:", deleted_photos.length);
+    /* is uploaded photo is primary now */
+    const profilePhotoChangeUrl: string = profile_photo_change?.image_url || "";
 
     // Step 1: Upload added photos first
     const uploadedPhotos: any[] = [];
@@ -177,7 +174,9 @@ export const uploadDelta = async (req: Request, res: Response) => {
            RETURNING *`,
           [user_id, photo.image_url, photo.position, photo.is_primary || false]
         );
-
+        if (photo.image_url === profilePhotoChangeUrl) {
+          result.rows[0].is_primary = true;
+        }
         uploadedPhotos.push(result.rows[0]);
         console.log(
           `✅ Added photo at position ${photo.position}:`,
@@ -249,54 +248,68 @@ export const uploadDelta = async (req: Request, res: Response) => {
 
     // Step 3: Delete photos (after uploads to avoid edge cases)
     const deletedPhotoIds: number[] = [];
-    for (const photo of deleted_photos) {
-      if (photo.id && photo.id > 0) {
-        // Get the image URL before deletion for cleanup
-        const photoResult = await client.query(
-          `SELECT image_url FROM user_profile_pictures WHERE id = $1 AND user_id = $2`,
-          [photo.id, user_id]
-        );
 
-        if (photoResult.rows.length > 0) {
-          const imageUrl = photoResult.rows[0].image_url;
+    // First, get all image URLs for photos to be deleted
+    const photoIdsToDelete = deleted_photos
+      .filter((photo: any) => photo.id && photo.id > 0)
+      .map((photo: any) => photo.id);
 
-          // Delete from database
-          const result = await client.query(
-            `DELETE FROM user_profile_pictures 
-             WHERE id = $1 AND user_id = $2
-             RETURNING id`,
-            [photo.id, user_id]
-          );
+    let imagesToDelete: { id: number; image_url: string }[] = [];
 
-          if (result.rows.length > 0) {
-            deletedPhotoIds.push(photo.id);
+    if (photoIdsToDelete.length > 0) {
+      const photoResult = await client.query(
+        `SELECT id, image_url FROM user_profile_pictures 
+         WHERE id = ANY($1) AND user_id = $2`,
+        [photoIdsToDelete, user_id]
+      );
 
-            // Delete physical file if it's a local upload
-            if (imageUrl && imageUrl.startsWith("/uploads/")) {
-              try {
-                const filePath = path.join(
-                  process.cwd(),
-                  "client",
-                  "public",
-                  imageUrl
-                );
-                if (fs.existsSync(filePath)) {
-                  fs.unlinkSync(filePath);
-                  console.log("🗑️ Deleted file:", filePath);
-                }
-              } catch (fileError) {
-                console.error(
-                  "Warning: Failed to delete file:",
-                  imageUrl,
-                  fileError
-                );
-                // Continue processing - don't fail the entire operation for file cleanup
-              }
+      imagesToDelete = photoResult.rows;
+      console.log("📋 Images to delete:", imagesToDelete);
+    }
+
+    // Now delete from database and files
+    for (const imageData of imagesToDelete) {
+      // Delete from database
+      const result = await client.query(
+        `DELETE FROM user_profile_pictures 
+         WHERE id = $1 AND user_id = $2
+         RETURNING id`,
+        [imageData.id, user_id]
+      );
+
+      if (result.rows.length > 0) {
+        deletedPhotoIds.push(imageData.id);
+
+        // Delete physical file if it's a local upload
+        if (
+          imageData.image_url &&
+          imageData.image_url.startsWith("/uploads/")
+        ) {
+          try {
+            const filePath = path.join(
+              process.cwd(),
+              "client",
+              "public",
+              imageData.image_url
+            );
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              console.log("🗑️ Deleted file:", filePath);
             }
-
-            console.log(`🗑️ Deleted photo ID ${photo.id}:`, imageUrl);
+          } catch (fileError) {
+            console.error(
+              "Warning: Failed to delete file:",
+              imageData.image_url,
+              fileError
+            );
+            // Continue processing - don't fail the entire operation for file cleanup
           }
         }
+
+        console.log(
+          `🗑️ Deleted photo ID ${imageData.id}:`,
+          imageData.image_url
+        );
       }
     }
 

@@ -239,6 +239,20 @@ export const useChatStore = defineStore("chat", () => {
           // Add to queue for processing
           statusUpdateQueue.value.push(data);
           processStatusQueue();
+        } else if (data.type === "delete_conversation") {
+          // Handle conversation deletion from other user
+          const fromUserId = parseInt(data.from);
+          const customMessage = data.message || "Conversation has been deleted";
+          const deletedBy = data.deletedBy || "User";
+          
+          if (userMessages.value[fromUserId]) {
+            delete userMessages.value[fromUserId];
+            console.log(`Conversation with user ${fromUserId} deleted by ${deletedBy}`);
+            
+            // Show notification to user
+            const userStore = useUserStore();
+            userStore.setMessage(customMessage, "warning", 5000);
+          }
         }
       } catch (err) {
         console.error("Invalid message format from server:", event.data);
@@ -397,6 +411,33 @@ export const useChatStore = defineStore("chat", () => {
     return lastMessage.content || "No content";
   };
 
+  const deleteConversation = async (toUserId: number): Promise<void> => {
+    try {
+      const response = await fetch(
+        `/api/chat/delete-conversation?toUserId=${toUserId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete conversation");
+      }
+
+      // Delete messages from local store
+      if (userMessages.value[toUserId]) {
+        delete userMessages.value[toUserId];
+      }
+
+      console.log(`Conversation with user ${toUserId} deleted successfully`);
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      throw error;
+    }
+  };
+
   return {
     ws,
     userStatus,
@@ -412,5 +453,6 @@ export const useChatStore = defineStore("chat", () => {
     getLastMessageContent,
     resetOpenedChat,
     setOpenedChat,
+    deleteConversation,
   };
 });

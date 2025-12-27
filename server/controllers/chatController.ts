@@ -313,3 +313,47 @@ const seperateThreadExecution = async (
     }
   });
 };
+
+export async function deleteConversation(req: Request, res: Response) {
+  // Get userId from token (attached by authMiddleware)
+  const userId = req.user?.userId;
+
+  // Get toUserId from query params
+  const toUserId = req.query.toUserId;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Unauthorized - User ID not found in token" });
+  }
+
+  if (!toUserId) {
+    return res
+      .status(400)
+      .json({ error: "Missing required query parameter: toUserId" });
+  }
+
+  const toUserIdNum = parseInt(toUserId as string, 10);
+
+  if (isNaN(toUserIdNum)) {
+    return res.status(400).json({ error: "Invalid toUserId" });
+  }
+
+  try {
+    // TODO: Add your delete query here
+    const query = `DELETE FROM messages
+     WHERE (from_user_id = $1 AND to_user_id = $2)
+     OR (from_user_id = $2 AND to_user_id = $1)`;
+
+    const result = await poolChat.query(query, [userId, toUserIdNum]);
+
+    res.status(200).json({
+      message: "Conversation deleted successfully",
+      userId,
+      toUserId: toUserIdNum,
+    });
+  } catch (error) {
+    console.error("Error deleting conversation:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

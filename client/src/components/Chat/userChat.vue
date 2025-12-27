@@ -262,17 +262,40 @@ const confirmDeleteChat = async () => {
 
   isDeleting.value = true;
   try {
-    // Add your chat deletion API call here
-    console.log("Deleting chat with user:", props.chatUser.user_id);
-    // Example: await chatStore.deleteConversation(props.chatUser.user_id);
+    // Call the delete conversation endpoint with openedChat as query param
+    await chatStore.deleteConversation(props.chatUser.user_id);
 
-    // Close the dialog and chat
+    // Send WebSocket message to notify the other user with custom message
+    if (ws.value && user.value) {
+      const currentUserName = user.value.profile?.full_name || "User";
+      const customMessage = `Your conversation with ${currentUserName} has been deleted by ${currentUserName}`;
+
+      const wsMessage = {
+        type: "delete_conversation",
+        to: props.chatUser.user_id.toString(),
+        message: customMessage,
+        deletedBy: currentUserName,
+      };
+      ws.value.send(JSON.stringify(wsMessage));
+      console.log(
+        "Sent delete conversation notification to user:",
+        props.chatUser.user_id
+      );
+    }
     showDeleteDialog.value = false;
-    closeChat();
   } catch (error) {
     console.error("Failed to delete chat:", error);
+    // You can show an error toast here if needed
   } finally {
     isDeleting.value = false;
+  }
+
+  // Send a message to record who deleted the conversation
+  if (ws.value && user.value) {
+    messageInput.value = `Conversation deleted by ${user.value.profile?.full_name}`;
+    sendMessage();
+    messageInput.value = "";
+    scrollToBottom();
   }
 };
 

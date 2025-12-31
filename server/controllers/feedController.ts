@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db/postGres";
+import { poolChat } from "../db/postGresChat";
 import { redis } from "../db/redisClient";
 
 type ActionEntry = {
@@ -211,5 +212,91 @@ export const feedUserAction = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Database connection error:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Reset matches + chats endpoint
+export const resetMatches = async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Unauthorized - User ID not found in token" });
+  }
+
+  const clientMain = await pool.connect(); // main DB
+  const clientChat = await poolChat.connect(); // chat DB
+
+  try {
+    // Begin both transactions
+    await clientMain.query("BEGIN");
+    await clientChat.query("BEGIN");
+
+    // ===== MAIN DB =====
+
+    // Delete seen profiles
+    await clientMain.query(
+      `
+      DELETE FROM user_seen_profiles
+      WHERE user_id = $1
+         OR seen_user_id = $1
+      `,
+      [userId]
+    );
+
+    // Delete matches
+    await clientMain.query(
+      `
+      DELETE FROM user_matches
+      WHERE user_id_1 = $1
+         OR user_id_2 = $1
+      `,
+      [userId]
+    );
+
+    // ===== CHAT DB =====
+
+    // Delete messages FIRST
+    await clientChat.query(
+      `
+      DELETE FROM messages
+      WHERE from_user_id = $1
+         OR to_user_id = $1
+      `,
+      [userId]
+    );
+
+    // Delete conversations
+    await clientChat.query(
+      `
+      DELETE FROM conversations
+      WHERE user1_id = $1
+         OR user2_id = $1
+      `,
+      [userId]
+    );
+
+    // Commit both
+    await clientMain.query("COMMIT");
+    await clientChat.query("COMMIT");
+
+    return res.status(200).json({
+      message: "Account reset successfully (matches + chats cleared)",
+      userId,
+    });
+  } catch (error) {
+    // Rollback both if anything fails
+    await clientMain.query("ROLLBACK");
+    await clientChat.query("ROLLBACK");
+
+    console.error("Error resetting account:", error);
+
+    return res.status(500).json({
+      error: "Failed to reset account",
+    });
+  } finally {
+    clientMain.release();
+    clientChat.release();
   }
 };

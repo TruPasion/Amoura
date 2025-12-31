@@ -174,7 +174,8 @@ export const useChatStore = defineStore("chat", () => {
           }
         } else if (
           data.type === "message_sent" ||
-          data.type === "message_delivered"
+          data.type === "message_delivered" ||
+          data.type === "message_unsuccessful"
         ) {
           const toUserId = parseInt(data.to);
           const clientMsgId = data.client_msg_id;
@@ -194,7 +195,11 @@ export const useChatStore = defineStore("chat", () => {
                 chatData.messages[messageIndex].delivered_timestamp = timestamp;
               }
               chatData.messages[messageIndex].status =
-                data.type === "message_sent" ? "sent" : "delivered";
+                data.type === "message_sent"
+                  ? "sent"
+                  : data.type === "message_delivered"
+                  ? "delivered"
+                  : "failed";
               console.log(
                 "Message status updated to sent:",
                 chatData.messages[messageIndex]
@@ -244,11 +249,13 @@ export const useChatStore = defineStore("chat", () => {
           const fromUserId = parseInt(data.from);
           const customMessage = data.message || "Conversation has been deleted";
           const deletedBy = data.deletedBy || "User";
-          
+
           if (userMessages.value[fromUserId]) {
             delete userMessages.value[fromUserId];
-            console.log(`Conversation with user ${fromUserId} deleted by ${deletedBy}`);
-            
+            console.log(
+              `Conversation with user ${fromUserId} deleted by ${deletedBy}`
+            );
+
             // Show notification to user
             const userStore = useUserStore();
             userStore.setMessage(customMessage, "warning", 5000);

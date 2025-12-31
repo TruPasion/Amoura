@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { RequestHandler } from "express";
-import { feedUserAction, getMatchedUserProfiles } from "../controllers/feedController";
+import { feedUserAction, getMatchedUserProfiles, resetMatches } from "../controllers/feedController";
 
 const router = Router();
 
@@ -21,6 +21,10 @@ router.get("/matches/:userId", (req, res, next) => {
     console.error("Error fetching matched user profiles:", error);
     res.status(500).json({ error: "Failed to fetch matched user profiles" });
   });
+});
+
+router.delete("/reset-matches", (req, res, next) => {
+  Promise.resolve(resetMatches(req, res)).catch(next);
 });
 
 export default router;

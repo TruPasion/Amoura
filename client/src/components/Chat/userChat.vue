@@ -82,16 +82,30 @@
                   v-if="message.status !== 'sending'"
                   class="flex items-center justify-between mt-1"
                 >
-                  <span class="text-xs opacity-70">{{
-                    formatMessageTime(message.timestamp)
-                  }}</span>
+                  <span
+                    v-if="message.status !== 'failed'"
+                    class="text-xs opacity-70"
+                    >{{ formatMessageTime(message.timestamp) }}</span
+                  >
                   <div
                     v-if="message.from === user?.id?.toString()"
                     class="flex items-center ml-2"
                   >
+                    <!-- Failed status: show AlertTriangle icon with tooltip, no ticks for failed -->
+                    <span
+                      v-if="message.status === 'failed'"
+                      class="relative group cursor-pointer flex items-center"
+                    >
+                      <AlertTriangle class="w-4 h-4 text-red-500" />
+                      <span
+                        class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 max-w-[180px] break-words bg-white border border-red-400 text-red-600 text-xs rounded px-2 py-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                      >
+                        User not found
+                      </span>
+                    </span>
                     <!-- Single tick (sent) -->
                     <span
-                      v-if="message.status === 'sent'"
+                      v-else-if="message.status === 'sent'"
                       class="text-xs opacity-70"
                       >✓</span
                     >
@@ -106,12 +120,6 @@
                       v-else-if="message.status === 'read'"
                       class="text-xs text-green-400"
                       >✓✓</span
-                    >
-                    <!-- Failed status -->
-                    <span
-                      v-else-if="message.status === 'failed'"
-                      class="text-xs text-red-500"
-                      >⚠</span
                     >
                   </div>
                 </div>

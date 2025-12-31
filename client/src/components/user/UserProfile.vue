@@ -827,17 +827,17 @@ watch(
 // =============================================================================
 
 // Debug function to log current state
-const logCurrentState = () => {
-  console.group("📊 Profile Component State");
-  console.log("Current data:", profileData.value);
-  console.log("Original data:", originalProfileData.value);
-  console.log("Selected interests:", selectedInterests.value);
-  console.log("Original interests:", originalInterests.value);
-  console.log("Has profile changes:", hasProfileFieldChanges.value);
-  console.log("Has photo changes:", hasUnsavedChanges.value);
-  console.log("Has any changes:", hasAnyUnsavedChanges.value);
-  console.groupEnd();
-};
+// const logCurrentState = () => {
+//   console.group("📊 Profile Component State");
+//   console.log("Current data:", profileData.value);
+//   console.log("Original data:", originalProfileData.value);
+//   console.log("Selected interests:", selectedInterests.value);
+//   console.log("Original interests:", originalInterests.value);
+//   console.log("Has profile changes:", hasProfileFieldChanges.value);
+//   console.log("Has photo changes:", hasUnsavedChanges.value);
+//   console.log("Has any changes:", hasAnyUnsavedChanges.value);
+//   console.groupEnd();
+// };
 
 // Helper functions to get display text
 const getOptionLabel = (options: OptionItem[], id: number | null): string => {
@@ -1578,13 +1578,34 @@ const confirmResetMatches = async () => {
   isResettingMatches.value = true;
   try {
     console.log("Resetting user matches");
-    // Add your reset matches API call here
-    // Example: await userStore.resetMatches();
 
+    // Call the reset matches API
+    const response = await fetch("/api/actions/reset-matches", {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to reset matches");
+    }
+
+    const result = await response.json();
+    console.log("Matches reset successfully:", result);
+
+    // Close the dialog
     showDeleteAccountDialog.value = false;
-    // Handle reset success
+
+    // Redirect to /app to reload all network calls
+    window.location.href = "/app";
   } catch (error) {
     console.error("Failed to reset matches:", error);
+    // Show error message
+    userStore.setMessage(
+      "Failed to reset matches. Please try again.",
+      "danger",
+      5000
+    );
   } finally {
     isResettingMatches.value = false;
   }

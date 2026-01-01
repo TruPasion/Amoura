@@ -615,6 +615,7 @@ import {
 } from "vue";
 import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
+import { useChatStore } from "../../stores/chatStore";
 import { useActionStore } from "../../stores/actionStore";
 import { storeToRefs } from "pinia";
 import PhotoGrid from "./PhotoGrid.vue";
@@ -647,7 +648,8 @@ import {
   heightOptions,
 } from "../../utils/profileOptions";
 import type { OptionItem } from "../../utils/profileOptions";
-
+const chatStore = useChatStore();
+const { sendResetMatchToUsers } = chatStore;
 const userStore = useUserStore();
 const actionStore = useActionStore();
 const { user, hasUnsavedChanges } = storeToRefs(userStore);
@@ -1576,6 +1578,7 @@ const confirmResetMatches = async () => {
   if (isResettingMatches.value) return;
 
   isResettingMatches.value = true;
+  const matches = actionStore.matches.map((m) => m.user_id);
   try {
     console.log("Resetting user matches");
 
@@ -1608,6 +1611,9 @@ const confirmResetMatches = async () => {
     );
   } finally {
     isResettingMatches.value = false;
+    // now send matches that he/she reseted matches so that
+    // online users list is updated instantly
+    sendResetMatchToUsers(matches);
   }
 };
 </script>

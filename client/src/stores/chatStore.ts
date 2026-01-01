@@ -1,3 +1,7 @@
+/**
+ * Sends a reset_match WebSocket message to each user ID in the provided array.
+ * @param userIds Array of user IDs to notify
+ */
 import { defineStore, storeToRefs } from "pinia";
 import { ref } from "vue";
 import { useUserStore } from "./user";
@@ -260,6 +264,20 @@ export const useChatStore = defineStore("chat", () => {
             const userStore = useUserStore();
             userStore.setMessage(customMessage, "warning", 5000);
           }
+        } else if (data.type === "reset_match") {
+          // lets reset the match  from matches and chat store
+          const fromUserId = parseInt(data.from);
+          // delet from actionstore matches array
+          actionStore.removeMatch(fromUserId);
+          //delete from usermessages key == fromuserid
+          if (userMessages.value[fromUserId]) {
+            delete userMessages.value[fromUserId];
+          }
+
+          //if opened chat is fromuserid reset it
+          if (openedChat.value === fromUserId) {
+            openedChat.value = null;
+          }
         }
       } catch (err) {
         console.error("Invalid message format from server:", event.data);
@@ -445,6 +463,21 @@ export const useChatStore = defineStore("chat", () => {
     }
   };
 
+  const sendResetMatchToUsers = (userIds: number[]) => {
+    // Only send if WebSocket and user are available
+    if (ws.value) {
+      const customMessage = "user matches reset";
+      userIds.forEach((toUserId) => {
+        const wsMessage = {
+          type: "reset_match",
+          to: toUserId,
+          message: customMessage,
+        };
+        ws.value!.send(JSON.stringify(wsMessage));
+      });
+    }
+  };
+
   return {
     ws,
     userStatus,
@@ -461,5 +494,6 @@ export const useChatStore = defineStore("chat", () => {
     resetOpenedChat,
     setOpenedChat,
     deleteConversation,
+    sendResetMatchToUsers,
   };
 });

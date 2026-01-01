@@ -128,6 +128,13 @@ export const useActionStore = defineStore("actionStore", () => {
       console.error("Error fetching matches:", error);
     }
   };
+
+  const removeMatch = (userId: number) => {
+    matches.value = matches.value.filter((match) => match.user_id !== userId);
+    chatUser.value = null;
+    openFeed();
+  };
+
   // Fetch matches when the store is initialized
   return {
     chatUser,
@@ -144,5 +151,6 @@ export const useActionStore = defineStore("actionStore", () => {
     confirmNavigation,
     cancelNavigation,
     discardAndNavigate,
+    removeMatch,
   };
 });

@@ -1562,13 +1562,43 @@ const confirmDeleteAccount = async () => {
   isDeletingAccount.value = true;
   try {
     console.log("Deleting account permanently with 10-day cooldown");
-    // Add your delete account API call here
-    // Example: await userStore.deleteAccount();
+
+    // First collect matches and send notification before cookie is cleared
+    const matches = actionStore.matches.map((m) => m.user_id);
+    if (matches.length > 0) {
+      console.log("Sending delete account notification to matches:", matches);
+      sendResetMatchToUsers(matches);
+    }
+
+    // Call the delete account API
+    const response = await fetch("/api/users/delete-account", {
+      method: "POST",
+      credentials: "include", // Include cookies for auth
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to delete account");
+    }
+
+    const result = await response.json();
+    console.log("Account deleted successfully:", result);
 
     showDeleteAccountDialog.value = false;
-    // Handle account deletion success (maybe redirect to login)
+
+    // Clear all localStorage data
+    localStorage.clear();
+
+    // Handle account deletion success - redirect to landing page
+    window.location.href = "/";
   } catch (error) {
     console.error("Failed to delete account:", error);
+    // Show error message
+    userStore.setMessage(
+      "Failed to delete account. Please try again.",
+      "danger",
+      5000
+    );
   } finally {
     isDeletingAccount.value = false;
   }

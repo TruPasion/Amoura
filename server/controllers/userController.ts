@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db/postGres";
+import { poolChat } from "../db/postGresChat";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -502,6 +503,92 @@ export const updateProfile = async (req: Request, res: Response) => {
       details: err instanceof Error ? err.message : "Unknown error",
     });
   } finally {
+    client.release();
+  }
+};
+
+// DELETE account - soft delete user account
+export const deleteAccount = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  const client2 = await poolChat.connect();
+
+  try {
+    const userId = req.user.userId; // Get userId from the authenticated token
+
+    console.log(`Delete account requested for user ID: ${userId}`);
+
+    // Start transactions
+    await client.query("BEGIN");
+    await client2.query("BEGIN");
+
+    // 1️⃣ Delete chat-related data first
+    await client2.query(
+      "DELETE FROM messages WHERE from_user_id = $1 OR to_user_id = $1",
+      [userId]
+    );
+
+    await client2.query(
+      "DELETE FROM conversations WHERE user1_id = $1 OR user2_id = $1",
+      [userId]
+    );
+
+    // 2️⃣ Remove interaction-related data
+    await client.query(
+      "DELETE FROM user_seen_profiles WHERE user_id = $1 OR seen_user_id = $1",
+      [userId]
+    );
+
+    await client.query(
+      "DELETE FROM user_matches WHERE user_id_1 = $1 OR user_id_2 = $1",
+      [userId]
+    );
+
+    // 3️⃣ Remove user-owned data
+    await client.query("DELETE FROM user_interests WHERE user_id = $1", [
+      userId,
+    ]);
+
+    await client.query("DELETE FROM user_locations WHERE user_id = $1", [
+      userId,
+    ]);
+
+    await client.query("DELETE FROM user_profile_pictures WHERE user_id = $1", [
+      userId,
+    ]);
+
+    await client.query("DELETE FROM user_profiles WHERE user_id = $1", [
+      userId,
+    ]);
+
+    // 4️⃣ Soft delete user (NO hard delete)
+    await client.query(
+      "UPDATE users SET active = FALSE, deleted_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC' WHERE id = $1",
+      [userId]
+    );
+
+    // Commit transactions
+    await client2.query("COMMIT");
+    await client.query("COMMIT");
+
+    // Clear auth cookie
+    res.clearCookie("auth_token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+
+    res.status(200).json({
+      message: "Account deletion completed successfully",
+      userId: userId,
+    });
+  } catch (err) {
+    // Rollback transactions on error
+    await client2.query("ROLLBACK");
+    await client.query("ROLLBACK");
+    console.error("Delete account error:", err);
+    res.status(500).json({ error: "Failed to delete account" });
+  } finally {
+    client2.release();
     client.release();
   }
 };

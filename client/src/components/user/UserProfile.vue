@@ -1652,6 +1652,14 @@ const confirmResetMatches = async () => {
 
     if (!response.ok) {
       const errorData = await response.json();
+
+      // Handle specific cooldown error (423 status)
+      if (response.status === 423 && errorData.message) {
+        userStore.setMessage(errorData.message, "warning", 5000);
+        showDeleteAccountDialog.value = false;
+        return;
+      }
+
       throw new Error(errorData.error || "Failed to reset matches");
     }
 

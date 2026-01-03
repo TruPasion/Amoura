@@ -229,55 +229,77 @@ export const resetMatches = async (req: Request, res: Response) => {
   const clientChat = await poolChat.connect(); // chat DB
 
   try {
+    // Check user eligibility for reset
+    const resetCheckQuery = `
+      SELECT reset_at,
+             EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' - COALESCE(reset_at, '1970-01-01'::timestamp))) / 86400 AS days_since_reset
+      FROM users 
+      WHERE id = $1
+    `;
+
+    const resetResult = await clientMain.query(resetCheckQuery, [userId]);
+
+    if (resetResult.rowCount === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { reset_at, days_since_reset } = resetResult.rows[0];
+
+    // If user has reset before and it's been less than 5 days
+    if (reset_at && days_since_reset < 5) {
+      const daysLeft = Math.ceil(5 - days_since_reset);
+      return res.status(423).json({
+        error: "Reset cooldown active",
+        message: `You can reset your matches again in ${daysLeft} day${
+          daysLeft > 1 ? "s" : ""
+        }`,
+        daysLeft: daysLeft,
+      });
+    }
+
     // Begin both transactions
     await clientMain.query("BEGIN");
     await clientChat.query("BEGIN");
 
-    // ===== MAIN DB =====
+    // ===== MAIN DB OPERATIONS =====
 
     // Delete seen profiles
     await clientMain.query(
-      `
-      DELETE FROM user_seen_profiles
-      WHERE user_id = $1
-         OR seen_user_id = $1
-      `,
+      `DELETE FROM user_seen_profiles
+       WHERE user_id = $1 OR seen_user_id = $1`,
       [userId]
     );
 
     // Delete matches
     await clientMain.query(
-      `
-      DELETE FROM user_matches
-      WHERE user_id_1 = $1
-         OR user_id_2 = $1
-      `,
+      `DELETE FROM user_matches
+       WHERE user_id_1 = $1 OR user_id_2 = $1`,
       [userId]
     );
 
-    // ===== CHAT DB =====
+    // Update reset timestamp
+    await clientMain.query(
+      `UPDATE users SET reset_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC' WHERE id = $1`,
+      [userId]
+    );
+
+    // ===== CHAT DB OPERATIONS =====
 
     // Delete messages FIRST
     await clientChat.query(
-      `
-      DELETE FROM messages
-      WHERE from_user_id = $1
-         OR to_user_id = $1
-      `,
+      `DELETE FROM messages
+       WHERE from_user_id = $1 OR to_user_id = $1`,
       [userId]
     );
 
     // Delete conversations
     await clientChat.query(
-      `
-      DELETE FROM conversations
-      WHERE user1_id = $1
-         OR user2_id = $1
-      `,
+      `DELETE FROM conversations
+       WHERE user1_id = $1 OR user2_id = $1`,
       [userId]
     );
 
-    // Commit both
+    // Commit both transactions
     await clientMain.query("COMMIT");
     await clientChat.query("COMMIT");
 
@@ -286,9 +308,13 @@ export const resetMatches = async (req: Request, res: Response) => {
       userId,
     });
   } catch (error) {
-    // Rollback both if anything fails
-    await clientMain.query("ROLLBACK");
-    await clientChat.query("ROLLBACK");
+    // Rollback both transactions if anything fails
+    try {
+      await clientMain.query("ROLLBACK");
+      await clientChat.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Error during rollback:", rollbackError);
+    }
 
     console.error("Error resetting account:", error);
 

@@ -131,22 +131,52 @@
 
       <!-- Chat Input Area -->
       <div
-        class="flex items-center bg-gradient-to-r from-gray-100 to-gray-200 p-4 border-t border-gray-300 rounded-b-lg"
+        class="flex flex-col bg-gradient-to-r from-gray-100 to-gray-200 p-4 border-t border-gray-300 rounded-b-lg"
       >
-        <textarea
-          v-model="messageInput"
-          @keydown.enter.prevent="sendMessage"
-          class="flex-1 resize-none border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows="1"
-          placeholder="Type a message..."
-        ></textarea>
-        <button
-          @click="sendMessage"
-          :disabled="!messageInput.trim()"
-          class="ml-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+        <!-- Character Counter -->
+        <div class="flex justify-end mb-2">
+          <span
+            :class="
+              messageInput.length > CHARACTER_LIMIT
+                ? 'text-red-500'
+                : 'text-gray-500'
+            "
+            class="text-xs"
+          >
+            {{ messageInput.length }}/{{ CHARACTER_LIMIT }}
+          </span>
+        </div>
+
+        <div class="flex items-center">
+          <textarea
+            v-model="messageInput"
+            @keydown.enter.prevent="sendMessage"
+            class="flex-1 resize-none border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :class="
+              messageInput.length > CHARACTER_LIMIT
+                ? 'border-red-300 focus:ring-red-500'
+                : ''
+            "
+            rows="1"
+            placeholder="Type a message..."
+            :maxlength="CHARACTER_LIMIT"
+          ></textarea>
+          <button
+            @click="sendMessage"
+            :disabled="!canSendMessage"
+            class="ml-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            Send
+          </button>
+        </div>
+
+        <!-- Error message for character limit -->
+        <div
+          v-if="messageInput.length > CHARACTER_LIMIT"
+          class="text-red-500 text-xs mt-1"
         >
-          Send
-        </button>
+          Message is too long. Please shorten your message.
+        </div>
       </div>
     </div>
 
@@ -244,6 +274,17 @@ const { closeChat } = actionStore;
 const messageInput = ref("");
 const showDeleteDialog = ref(false);
 const isDeleting = ref(false);
+
+// Character limit constant
+const CHARACTER_LIMIT = 200;
+
+// Computed property to check if message can be sent
+const canSendMessage = computed(() => {
+  return (
+    messageInput.value.trim() && messageInput.value.length <= CHARACTER_LIMIT
+  );
+});
+
 const messages = computed(() => {
   const userId = props.chatUser.user_id;
   if (!userId || !props.chatUser) return [];

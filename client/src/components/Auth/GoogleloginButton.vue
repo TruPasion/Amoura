@@ -15,7 +15,6 @@ function handleCredentialResponse(
 ) {
   console.log("📥 Google callback fired:", response);
 
-
   const token = response.credential;
 
   if (!token) {
@@ -31,8 +30,25 @@ function handleCredentialResponse(
   })
     .then(async (res) => {
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to authenticate");
+        const errorData = await res.json();
+
+        // Handle cooldown specifically
+        if (errorData.cooldown) {
+          alert(
+            `${errorData.message}\n\nIf you have any issues, please report them to hello@amoura.dev`
+          );
+          return Promise.reject(new Error("Cooldown handled"));
+        }
+
+        // Handle other specific errors
+        if (errorData.error === "Account deactivated") {
+          alert(
+            `${errorData.message}\n\nIf you have any issues, please report them to hello@amoura.dev`
+          );
+          return Promise.reject(new Error("Account deactivated"));
+        }
+
+        throw new Error(errorData.error || "Failed to authenticate");
       }
       return res.json();
     })
@@ -49,21 +65,32 @@ function handleCredentialResponse(
       // Optional: redirect or update UI
       if (user.profile) {
         router.push("/app");
-      }
-      else {
+      } else {
         router.push("/registration");
       }
     })
     .catch((err) => {
       console.error("❌ Authentication failed:", err.message);
+
+      // Only show alert for generic errors (cooldown and deactivated are handled above)
+      if (
+        err.message !== "Cooldown handled" &&
+        err.message !== "Account deactivated"
+      ) {
+        alert(
+          `Authentication failed: ${err.message}\n\nIf you continue to experience issues, please report them to hello@amoura.dev`
+        );
+      }
     });
 }
 
 const handleWrapperClick = () => {
   // When the wrapper is clicked, try to click the actual Google button
-  const googleButton = document.querySelector('#google-btn div[role="button"]') as HTMLElement;
+  const googleButton = document.querySelector(
+    '#google-btn div[role="button"]'
+  ) as HTMLElement;
   if (googleButton) {
-    console.log('✅ Wrapper clicked, triggering Google button...');
+    console.log("✅ Wrapper clicked, triggering Google button...");
     googleButton.click();
   }
 };

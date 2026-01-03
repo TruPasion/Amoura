@@ -28,13 +28,65 @@ export async function googleAuthHandler(req: Request, res: Response) {
 
     let user;
     if ((existingUser.rowCount ?? 0) > 0) {
-      // Update login time
-      user = await pool.query(
-        `UPDATE users
-         SET last_login_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
-         WHERE id = $1 RETURNING *`,
-        [existingUser.rows[0].id]
-      );
+      const existingUserData = existingUser.rows[0];
+
+      // Check user activation status
+      if (!existingUserData.active) {
+        const deletedAt = existingUserData.deleted_at;
+        const currentDate = new Date();
+
+        if (deletedAt === null) {
+          // Account is blocked/deactivated by admin
+          return res.status(403).json({
+            error: "Account deactivated",
+            message:
+              "Your account has been deactivated perminantly. Please contact support.",
+          });
+        }
+
+        // Calculate days since deletion
+        const deletedAtDate = new Date(deletedAt);
+        const daysSinceDeletion = Math.floor(
+          (currentDate.getTime() - deletedAtDate.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        if (daysSinceDeletion < 10) {
+          // Account is in cooldown period
+          const daysLeft = 10 - daysSinceDeletion;
+          return res.status(423).json({
+            error: "Account in cooldown",
+            message: `Hi ${existingUserData.name || "User"} (${
+              existingUserData.email
+            }), your account is in cooldown period. ${daysLeft} days left to reactivate.`,
+            cooldown: true,
+            daysLeft: daysLeft,
+          });
+        }
+
+        // More than 10 days, reactivate the account
+        if (daysSinceDeletion >= 10) {
+          await pool.query(
+            `UPDATE users 
+             SET active = true, deleted_at = NULL, last_login_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+             WHERE id = $1`,
+            [existingUserData.id]
+          );
+
+          // Get the updated user data
+          user = await pool.query(`SELECT * FROM users WHERE id = $1`, [
+            existingUserData.id,
+          ]);
+        }
+      } else {
+        // User is active, just update login time
+        user = await pool.query(
+          `UPDATE users
+           SET last_login_at = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+           WHERE id = $1 RETURNING *`,
+          [existingUserData.id]
+        );
+      }
     } else {
       // Create new user
       user = await pool.query(
@@ -43,6 +95,11 @@ export async function googleAuthHandler(req: Request, res: Response) {
          RETURNING *`,
         [provider_user_id, email, name, profile_picture]
       );
+    }
+
+    // If user is not set (due to early returns), don't proceed
+    if (!user || user.rowCount === 0) {
+      return res.status(500).json({ error: "User processing failed" });
     }
 
     const userProfile = await pool.query(
@@ -96,8 +153,14 @@ export async function getMeHandler(req: Request, res: Response) {
     ]);
 
     if (user.rowCount === 0) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: "User not found" });
     }
+
+    // check user is active or not,
+    // if not active check deleted_at
+    // if deleted_at is null then account deactivated
+    // if deleted_at is less 10 days then account is in cooldown period and respond days left to reactivate
+    // if deleted_at is more than 10 day, activate account again and manipulate user status to active and continue
 
     const userProfile = await pool.query(
       `

@@ -300,3 +300,78 @@ export const resetMatches = async (req: Request, res: Response) => {
     clientChat.release();
   }
 };
+
+// unmatch user endpoint
+export const unmatchUser = async (req: Request, res: Response) => {
+  const currentUserId = (req as any).user?.userId; // Get current user ID from token
+  const { userId } = req.body; // Get target user ID from payload
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+
+  if (!currentUserId) {
+    return res.status(401).json({ error: "User not authenticated" });
+  }
+
+  const clientMain = await pool.connect(); // main DB
+  const clientChat = await poolChat.connect(); // chat DB
+
+  try {
+    // Begin both transactions
+    await clientMain.query("BEGIN");
+    await clientChat.query("BEGIN");
+
+    // Delete matches
+    await clientMain.query(
+      `
+      DELETE FROM user_matches
+      WHERE (user_id_1 = $1 AND user_id_2 = $2)
+         OR (user_id_1 = $2 AND user_id_2 = $1)
+      `,
+      [currentUserId, userId]
+    );
+
+    // ===== CHAT DB =====
+
+    // Delete messages FIRST
+    await clientChat.query(
+      `
+      DELETE FROM messages
+      WHERE (from_user_id = $1 AND to_user_id = $2)
+         OR (from_user_id = $2 AND to_user_id = $1)
+      `,
+      [currentUserId, userId]
+    );
+
+    // Delete conversations
+    await clientChat.query(
+      `
+      DELETE FROM conversations
+      WHERE (user1_id = $1 AND user2_id = $2)
+         OR (user1_id = $2 AND user2_id = $1)
+      `,
+      [currentUserId, userId]
+    );
+
+    // Commit both
+    await clientMain.query("COMMIT");
+    await clientChat.query("COMMIT");
+
+    return res.status(200).json({
+      message: "User unmatched successfully",
+      currentUserId,
+      unmatchedUserId: userId,
+    });
+  } catch (error) {
+    // Rollback both transactions on error
+    await clientMain.query("ROLLBACK");
+    await clientChat.query("ROLLBACK");
+
+    console.error("Error unmatching user:", error);
+    return res.status(500).json({ error: "Failed to unmatch user" });
+  } finally {
+    clientMain.release();
+    clientChat.release();
+  }
+};

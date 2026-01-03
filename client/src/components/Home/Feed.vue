@@ -340,7 +340,7 @@
               </div>
 
               <!-- Report and Block -->
-              <div class="flex justify-center gap-8 mt-4 text-sm">
+              <!--               <div class="flex justify-center gap-8 mt-4 text-sm">
                 <button
                   class="text-gray-400 hover:text-red-500 transition-colors"
                 >
@@ -351,7 +351,7 @@
                 >
                   Block
                 </button>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>

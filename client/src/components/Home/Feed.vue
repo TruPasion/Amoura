@@ -83,7 +83,7 @@
                 class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 flex space-x-3 bg-white/90 px-4 py-2 rounded-full shadow-lg"
               >
                 <button
-                  v-for="(photo, index) in lastUser?.photos"
+                  v-for="(_, index) in lastUser?.photos"
                   :key="index"
                   @click="currentPhotoIndex = index"
                   class="w-3 h-3 rounded-full transition-all duration-300"

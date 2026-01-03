@@ -21,12 +21,18 @@
 
       <div v-if="step === 1" class="text-center">
         <h2 class="text-xl font-bold mb-4">Enter Your Name</h2>
-        <input
-          v-model="userData.name"
-          type="text"
-          placeholder="Your Name"
-          class="w-full p-2 border rounded mb-4"
-        />
+        <div class="relative">
+          <input
+            v-model="userData.name"
+            type="text"
+            placeholder="Your Name"
+            maxlength="35"
+            class="w-full p-2 border rounded mb-4"
+          />
+          <div class="absolute bottom-6 right-2 text-xs text-gray-500">
+            {{ (userData.name || "").length }}/35
+          </div>
+        </div>
         <Button
           @click="handleContinue"
           :disabled="!userData.name"
@@ -224,7 +230,11 @@ async function handleContinue() {
       };
 
       const photoFormData = new FormData();
-      photoFormData.append("image", userData.value.photo!, userData.value.photo!.name);
+      photoFormData.append(
+        "image",
+        userData.value.photo!,
+        userData.value.photo!.name
+      );
 
       const requestOptions = {
         method: "POST",

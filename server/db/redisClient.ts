@@ -94,6 +94,91 @@ class RedisClient {
     }
   }
 
+  async incr(key: string): Promise<number | null> {
+    const connected = await this.ensureConnection();
+    if (!connected || !this.client) {
+      console.warn(`⚠️  Redis incr operation skipped - Redis not available`);
+      return null;
+    }
+
+    try {
+      return await this.client.incr(key);
+    } catch (err) {
+      console.error("❌ Redis incr failed:", (err as Error).message);
+      this.isConnected = false;
+      return null;
+    }
+  }
+
+  async expire(key: string, seconds: number): Promise<boolean> {
+    const connected = await this.ensureConnection();
+    if (!connected || !this.client) {
+      console.warn(`⚠️  Redis expire operation skipped - Redis not available`);
+      return false;
+    }
+
+    try {
+      const result = await this.client.expire(key, seconds);
+      return result === 1;
+    } catch (err) {
+      console.error("❌ Redis expire failed:", (err as Error).message);
+      this.isConnected = false;
+      return false;
+    }
+  }
+
+  async ttl(key: string): Promise<number | null> {
+    const connected = await this.ensureConnection();
+    if (!connected || !this.client) {
+      console.warn(`⚠️  Redis ttl operation skipped - Redis not available`);
+      return null;
+    }
+
+    try {
+      return await this.client.ttl(key);
+    } catch (err) {
+      console.error("❌ Redis ttl failed:", (err as Error).message);
+      this.isConnected = false;
+      return null;
+    }
+  }
+
+  async get(key: string): Promise<string | null> {
+    const connected = await this.ensureConnection();
+    if (!connected || !this.client) {
+      console.warn(`⚠️  Redis get operation skipped - Redis not available`);
+      return null;
+    }
+
+    try {
+      return await this.client.get(key);
+    } catch (err) {
+      console.error("❌ Redis get failed:", (err as Error).message);
+      this.isConnected = false;
+      return null;
+    }
+  }
+
+  async set(
+    key: string,
+    value: string,
+    options?: { EX?: number }
+  ): Promise<string | null> {
+    const connected = await this.ensureConnection();
+    if (!connected || !this.client) {
+      console.warn(`⚠️  Redis set operation skipped - Redis not available`);
+      return null;
+    }
+
+    try {
+      return await this.client.set(key, value, options);
+    } catch (err) {
+      console.error("❌ Redis set failed:", (err as Error).message);
+      this.isConnected = false;
+      return null;
+    }
+  }
+
   async disconnect(): Promise<void> {
     if (this.client && this.isConnected) {
       try {

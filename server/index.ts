@@ -8,6 +8,7 @@ import chatRoutes from "./routes/chat";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import { rateLimitMiddleware } from "./middlewares/rateLimitMiddleware";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -47,10 +48,10 @@ app.get("/api/hello", (req, res) => {
 
 // Mount your API routes
 app.use("/api/auth", authRoutes);
-app.use("/api/gis", authMiddleware, georoutes);
-app.use("/api/users", authMiddleware, userRoutes);
-app.use("/api/actions", authMiddleware, feedRoutes);
-app.use("/api/chat", authMiddleware, chatRoutes);
+app.use("/api/gis", authMiddleware, rateLimitMiddleware, georoutes);
+app.use("/api/users", authMiddleware, rateLimitMiddleware, userRoutes);
+app.use("/api/actions", authMiddleware, rateLimitMiddleware, feedRoutes);
+app.use("/api/chat", authMiddleware, rateLimitMiddleware, chatRoutes);
 // Serve static files from the uploads directory
 
 // Upload endpoint
@@ -59,6 +60,7 @@ import type { Request, Response } from "express";
 app.post(
   "/api/upload",
   authMiddleware,
+  rateLimitMiddleware,
   upload.single("image"),
   (req: express.Request, res: express.Response): void => {
     if (!req.file) {

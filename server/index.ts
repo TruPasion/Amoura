@@ -58,6 +58,7 @@ import type { Request, Response } from "express";
 
 app.post(
   "/api/upload",
+  authMiddleware,
   upload.single("image"),
   (req: express.Request, res: express.Response): void => {
     if (!req.file) {

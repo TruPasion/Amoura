@@ -8,10 +8,10 @@
         class="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 p-4 border-b border-gray-300 rounded-t-lg"
       >
         <div class="flex items-center gap-3">
-          <fwb-avatar
+          <GcpAvatar
             bordered
-            :img="props.chatUser.profile_photo"
-            class="w-10 h-10 rounded-full"
+            :src="props.chatUser.profile_photo"
+            avatar-class="w-10 h-10 rounded-full"
           />
           <div>
             <h1 class="text-lg font-semibold text-gray-800">
@@ -243,6 +243,7 @@
 <script setup lang="ts">
 import { useActionStore } from "../../stores/actionStore";
 import { FwbAvatar } from "flowbite-vue";
+import GcpAvatar from "../common/GcpAvatar.vue";
 import type { Match, Message } from "../../utils/types";
 import {
   formatMessageTimeIST,

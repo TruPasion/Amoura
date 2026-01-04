@@ -53,10 +53,10 @@
           "
         >
           <div class="w-12 h-12">
-            <fwb-avatar
+            <GcpAvatar
               bordered
-              :img="match.profile_photo"
-              class="rounded-full"
+              :src="match.profile_photo"
+              avatar-class="rounded-full"
             />
           </div>
           <div v-if="!props.isCollapsed" class="flex-1 min-w-0">
@@ -146,6 +146,7 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue";
 import { FwbAvatar } from "flowbite-vue";
+import GcpAvatar from "../common/GcpAvatar.vue";
 import { Trash2, AlertTriangle } from "lucide-vue-next";
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";

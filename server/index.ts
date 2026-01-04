@@ -9,25 +9,14 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { rateLimitMiddleware } from "./middlewares/rateLimitMiddleware";
-import multer from "multer";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
+import gcsRoutes from "./routes/gcs";
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Configure multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage }); // Create the upload instance
 
 const app = express();
 const PORT = 3000;
@@ -54,54 +43,48 @@ app.use("/api/actions", authMiddleware, rateLimitMiddleware, feedRoutes);
 app.use("/api/chat", authMiddleware, rateLimitMiddleware, chatRoutes);
 // Serve static files from the uploads directory
 
-// Upload endpoint
-import type { Request, Response } from "express";
-
-app.post(
-  "/api/upload",
-  authMiddleware,
-  rateLimitMiddleware,
-  upload.single("image"),
-  (req: express.Request, res: express.Response): void => {
-    if (!req.file) {
-      res.status(400).json({ message: "No file uploaded" });
-      return;
-    }
-
-    res.json({
-      message: "File uploaded successfully",
-      fileUrl: `/uploads/${req.file.filename}`,
-    });
-  }
-);
+// GCS upload/view endpoints
+app.use("/api/gcs", authMiddleware, gcsRoutes);
 
 // Handle 404 for API routes
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "API route not found checking hmr" });
 });
 
-// Proxy all frontend routes to Vite dev server
-app.use(
-  "/",
-  createProxyMiddleware({
-    target: "http://localhost:5173",
-    changeOrigin: true,
-    ws: true,
-  })
-);
+console.log("NODE_ENV:", process.env.NODE_ENV);
 
-// Proxy WebSocket upgrade requests on /ws to the WS server
-app.use(
-  "/ws",
-  createProxyMiddleware({
-    target: "ws://localhost:8000", // your WS backend
-    ws: true,
-    changeOrigin: true,
-    pathRewrite: {
-      "^/ws": "", // optional: strip `/ws` before sending to target
-    },
-  })
-);
+if (process.env.NODE_ENV === "production") {
+  // Production: serve built static files
+  app.use(express.static(join(__dirname, "../client/dist")));
+
+  // SPA fallback - serve index.html for all non-API routes
+  app.use((req, res) => {
+    res.sendFile(join(__dirname, "../client/dist/index.html"));
+  });
+} else {
+  // Development: proxy to Vite dev server
+  app.use(
+    "/",
+    createProxyMiddleware({
+      target: "http://localhost:5173",
+      changeOrigin: true,
+      ws: true,
+    })
+  );
+
+  // Proxy WebSocket upgrade requests on /ws to the WS server
+  app.use(
+    "/ws",
+    createProxyMiddleware({
+      target: "ws://localhost:8000", // your WS backend
+      ws: true,
+      changeOrigin: true,
+      pathRewrite: {
+        "^/ws": "", // optional: strip `/ws` before sending to target
+      },
+    })
+  );
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);

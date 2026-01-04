@@ -229,27 +229,36 @@ async function handleContinue() {
         longitude: userData.value.location.longitude,
       };
 
-      const photoFormData = new FormData();
-      photoFormData.append(
-        "image",
-        userData.value.photo!,
-        userData.value.photo!.name
-      );
-
-      const requestOptions = {
+      // Step 1: Get signed upload URL from backend
+      const getUrlRes = await fetch("/api/gcs/upload-url", {
         method: "POST",
-        body: photoFormData,
-        redirect: "manual" as RequestRedirect,
-      };
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: userData.value.photo!.type }),
+      });
 
-      const photoResponse = await fetch("/api/upload", requestOptions);
+      if (!getUrlRes.ok) throw new Error("Failed to get upload URL");
+      const { uploadUrl, objectPath } = await getUrlRes.json();
 
-      if (!photoResponse.ok) {
-        throw new Error("Failed to upload photo");
-      }
+      // Step 2: Upload file directly to GCS
+      const gcsRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": userData.value.photo!.type },
+        body: userData.value.photo!,
+      });
 
-      const photoData = await photoResponse.json();
-      formData.profile_photo = photoData.fileUrl;
+      if (!gcsRes.ok) throw new Error("Failed to upload to GCS");
+
+      // Step 3: Confirm upload with backend
+      const confirmRes = await fetch("/api/gcs/confirm-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objectPath }),
+      });
+
+      if (!confirmRes.ok) throw new Error("Failed to confirm upload");
+
+      // Use the GCS object path as the profile photo
+      formData.profile_photo = objectPath;
 
       const response = await fetch("/api/users/profiles", {
         method: "POST",

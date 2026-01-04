@@ -6,9 +6,12 @@
   "scripts": {
     "dev:client": "vite --config client/vite.config.ts",
     "dev:server": "tsx watch server/index.ts",
-    "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\""
+    "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\"",
+    "build": "vite build --config client/vite.config.ts",
+    "start": "cross-env NODE_ENV=production tsx server/index.ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.18.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.1.0",

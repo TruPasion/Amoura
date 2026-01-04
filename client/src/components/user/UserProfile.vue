@@ -7,10 +7,10 @@
       class="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 p-4 border-b border-gray-300 rounded-t-lg relative"
     >
       <div class="flex items-center gap-3 flex-none">
-        <fwb-avatar
+        <GcpAvatar
           bordered
-          :img="user?.profile?.profile_photo?.image_url"
-          class="w-10 h-10 rounded-full"
+          :src="user?.profile?.profile_photo?.image_url"
+          avatar-class="w-10 h-10 rounded-full"
         />
         <div>
           <h1 class="text-lg font-semibold text-gray-800">
@@ -94,10 +94,10 @@
                   class="flex flex-col items-center text-center bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 border border-purple-200"
                 >
                   <div class="w-20 h-20 mb-4">
-                    <img
+                    <GcpImage
                       :src="user?.profile?.profile_photo?.image_url"
                       :alt="user?.profile?.full_name || user?.name"
-                      class="w-full h-full rounded-full object-cover shadow-lg border-3 border-white"
+                      img-class="w-full h-full rounded-full object-cover shadow-lg border-3 border-white"
                     />
                   </div>
                   <h2
@@ -650,6 +650,8 @@ import { useChatStore } from "../../stores/chatStore";
 import { useActionStore } from "../../stores/actionStore";
 import { storeToRefs } from "pinia";
 import PhotoGrid from "./PhotoGrid.vue";
+import GcpImage from "../common/GcpImage.vue";
+import GcpAvatar from "../common/GcpAvatar.vue";
 import {
   Trash2,
   Save,
@@ -1120,23 +1122,33 @@ const uploadBase64AsFile = async (base64Data: string): Promise<string> => {
     // Convert base64 to blob
     const response = await fetch(base64Data);
     const blob = await response.blob();
-
-    // Create FormData
-    const formData = new FormData();
-    formData.append("image", blob, "photo.jpg");
-
-    // Upload file
-    const uploadResponse = await fetch("/api/upload", {
+    // Step 1: Get signed upload URL from backend
+    const getUrlRes = await fetch("/api/gcs/upload-url", {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType: blob.type || "image/jpeg" }),
     });
+    if (!getUrlRes.ok) throw new Error("Failed to get upload URL");
+    const { uploadUrl, objectPath } = await getUrlRes.json();
 
-    if (!uploadResponse.ok) {
-      throw new Error("Failed to upload image");
-    }
+    // Step 2: Upload file directly to GCS
+    const gcsRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": blob.type || "image/jpeg" },
+      body: blob,
+    });
+    if (!gcsRes.ok) throw new Error("Failed to upload to GCS");
 
-    const result = await uploadResponse.json();
-    return result.fileUrl;
+    // Step 3: Confirm upload with backend (save objectPath in DB)
+    const confirmRes = await fetch("/api/gcs/confirm-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objectPath }),
+    });
+    if (!confirmRes.ok) throw new Error("Failed to confirm upload");
+
+    // Return the GCS object path (or you can build a public/view URL if needed)
+    return objectPath;
   } catch (error) {
     console.error("Error uploading image:", error);
     throw error;

@@ -25,13 +25,13 @@
           <div
             class="aspect-[4/5] rounded-lg overflow-hidden shadow-md w-full h-auto max-h-full border-2 border-purple-300"
           >
-            <img
+            <GcpImage
               :src="
                 primaryPhoto?.image_url ||
                 user?.profile?.profile_photo?.image_url
               "
               :alt="user?.profile?.full_name || user?.name || 'User'"
-              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              img-class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <!-- Profile badge -->
             <div
@@ -51,10 +51,10 @@
           <div
             class="aspect-[4/5] rounded-lg overflow-hidden shadow-md w-full h-auto max-h-full"
           >
-            <img
+            <GcpImage
               :src="photo.url"
               :alt="`Photo ${index + 1}`"
-              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              img-class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <!-- Star and Delete icons on hover -->
             <div
@@ -127,6 +127,7 @@ import { Images, Trash2, Plus, Star } from "lucide-vue-next";
 import { useUserStore } from "../../stores/user";
 import { storeToRefs } from "pinia";
 import type { PhotoObject } from "../../utils/types";
+import GcpImage from "../common/GcpImage.vue";
 
 interface DisplayPhoto {
   id: number;

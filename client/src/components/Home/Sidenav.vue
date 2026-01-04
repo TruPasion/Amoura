@@ -3,6 +3,7 @@ import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
 import { useActionStore } from "../../stores/actionStore";
 import Matches from "../user/Matches.vue";
+import GcpAvatar from "../common/GcpAvatar.vue";
 import { Search } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
@@ -48,10 +49,10 @@ const isOnFeed = computed(() => {
             @click="openUserProfile"
           >
             <div class="w-12 h-12">
-              <fwb-avatar
+              <GcpAvatar
                 bordered
-                :img="userStore.user?.profile?.profile_photo?.image_url"
-                class="rounded-full"
+                :src="userStore.user?.profile?.profile_photo?.image_url"
+                avatar-class="rounded-full"
               />
             </div>
             <div v-if="!props.isCollapsed" class="m-1.5">

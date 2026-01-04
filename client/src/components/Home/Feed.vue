@@ -38,7 +38,7 @@
             <div
               class="relative rounded-3xl overflow-hidden shadow-2xl bg-white p-2 max-w-full max-h-full"
             >
-              <img
+              <GcpImage
                 :src="
                   (() => {
                     const photo = getCurrentPhoto();
@@ -46,8 +46,8 @@
                   })()
                 "
                 alt="User Image"
-                class="w-full h-full object-cover rounded-2xl"
-                style="aspect-ratio: 3/4; max-height: 70vh"
+                img-class="w-full h-full object-cover rounded-2xl"
+                :style="{ aspectRatio: '3/4', maxHeight: '70vh' }"
               />
 
               <!-- Elegant overlay gradient -->
@@ -119,13 +119,13 @@
                   <div class="flex items-start gap-4">
                     <!-- Circular Profile Photo -->
                     <div class="flex-shrink-0">
-                      <img
+                      <GcpImage
                         :src="
                           lastUser?.profile_photo ||
                           (lastUser?.photos && lastUser.photos[0])
                         "
                         alt="Profile"
-                        class="w-20 h-20 rounded-full object-cover shadow-lg border-4 border-purple-200"
+                        img-class="w-20 h-20 rounded-full object-cover shadow-lg border-4 border-purple-200"
                       />
                     </div>
 
@@ -380,6 +380,7 @@ import {
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import FilterBox from "./FilterBox.vue";
+import GcpImage from "../common/GcpImage.vue";
 import { interestsOptions } from "../../utils/profileOptions";
 
 import { useUserStore } from "../../stores/user";

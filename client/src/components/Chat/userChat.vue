@@ -242,7 +242,6 @@
 
 <script setup lang="ts">
 import { useActionStore } from "../../stores/actionStore";
-import { FwbAvatar } from "flowbite-vue";
 import GcpAvatar from "../common/GcpAvatar.vue";
 import type { Match, Message } from "../../utils/types";
 import {

@@ -145,7 +145,6 @@
 
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue";
-import { FwbAvatar } from "flowbite-vue";
 import GcpAvatar from "../common/GcpAvatar.vue";
 import { Trash2, AlertTriangle } from "lucide-vue-next";
 import { useUserStore } from "../../stores/user";

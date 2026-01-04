@@ -644,7 +644,6 @@ import {
   computed,
   nextTick,
 } from "vue";
-import { FwbAvatar } from "flowbite-vue";
 import { useUserStore } from "../../stores/user";
 import { useChatStore } from "../../stores/chatStore";
 import { useActionStore } from "../../stores/actionStore";

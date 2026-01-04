@@ -3,6 +3,10 @@ import { pool } from "../db/postGres";
 import { poolChat } from "../db/postGresChat";
 import * as fs from "fs";
 import * as path from "path";
+import { Storage } from "@google-cloud/storage";
+
+const storage = new Storage();
+const bucket = storage.bucket(process.env.GCS_BUCKET!);
 
 // CREATE user
 export const createUser = async (req: Request, res: Response) => {
@@ -268,7 +272,7 @@ export const uploadDelta = async (req: Request, res: Response) => {
       console.log("📋 Images to delete:", imagesToDelete);
     }
 
-    // Now delete from database and files
+    // Now delete from database and GCP bucket
     for (const imageData of imagesToDelete) {
       // Delete from database
       const result = await client.query(
@@ -281,34 +285,40 @@ export const uploadDelta = async (req: Request, res: Response) => {
       if (result.rows.length > 0) {
         deletedPhotoIds.push(imageData.id);
 
-        // Delete physical file if it's a local upload
-        if (
-          imageData.image_url &&
-          imageData.image_url.startsWith("/uploads/")
-        ) {
-          try {
-            const filePath = path.join(
-              process.cwd(),
-              "client",
-              "public",
+        // Delete from GCP bucket if it's a GCP path
+        if (imageData.image_url) {
+          const isGcpPath =
+            !imageData.image_url.startsWith("/uploads/") &&
+            !imageData.image_url.startsWith("http://") &&
+            !imageData.image_url.startsWith("https://") &&
+            !imageData.image_url.startsWith("blob:") &&
+            !imageData.image_url.startsWith("data:");
+
+          if (isGcpPath) {
+            try {
+              // This is a GCP object path like: users/104/16c8c3a8-d904-4105-aea6-c162e52e801b
+              const file = bucket.file(imageData.image_url);
+              await file.delete();
+              console.log("🗑️ Deleted from GCP bucket:", imageData.image_url);
+            } catch (gcsError) {
+              console.error(
+                "Warning: Failed to delete from GCP:",
+                imageData.image_url,
+                gcsError
+              );
+              // Continue processing - don't fail the entire operation for GCP cleanup
+            }
+          } else if (imageData.image_url.startsWith("/uploads/")) {
+            // Legacy multer path - skip file deletion, will be cleaned up manually
+            console.log(
+              "⏭️ Skipping legacy multer file (will clean up manually):",
               imageData.image_url
             );
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log("🗑️ Deleted file:", filePath);
-            }
-          } catch (fileError) {
-            console.error(
-              "Warning: Failed to delete file:",
-              imageData.image_url,
-              fileError
-            );
-            // Continue processing - don't fail the entire operation for file cleanup
           }
         }
 
         console.log(
-          `🗑️ Deleted photo ID ${imageData.id}:`,
+          `🗑️ Deleted photo ID ${imageData.id} from DB:`,
           imageData.image_url
         );
       }

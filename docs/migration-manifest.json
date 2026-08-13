@@ -1,0 +1,65 @@
+{
+  "project": "Amoura",
+  "audit_phase": 1,
+  "source_snapshot": {
+    "source_config_files": 57,
+    "approx_source_loc": 9087,
+    "excluded_from_source_audit": [
+      ".git",
+      "node_modules"
+    ]
+  },
+  "frontend": {
+    "framework": "Vue 3",
+    "language": "TypeScript",
+    "build": "Vite",
+    "state": "Pinia",
+    "router": "Vue Router",
+    "ui": [
+      "Flowbite Vue",
+      "Tailwind CSS"
+    ],
+    "stores": [
+      "user",
+      "actionStore",
+      "chatStore",
+      "geoStore"
+    ]
+  },
+  "backend": {
+    "framework": "Express 5",
+    "auth": "Google ID token + JWT cookie",
+    "databases": [
+      "PostgreSQL/PostGIS",
+      "separate chat PostgreSQL"
+    ],
+    "redis": true,
+    "websocket_backend_port": 8000
+  },
+  "migration_principle": "Preserve behavior; change frontend implementation.",
+  "phase_2_order": [
+    "target shell",
+    "authentication/session",
+    "registration",
+    "discovery/feed",
+    "profile/photo editing",
+    "matches",
+    "chat/websocket",
+    "public/compliance pages",
+    "parity testing",
+    "cleanup"
+  ],
+  "critical_files": {
+    "stores": [
+      "client/src/stores/user.ts",
+      "client/src/stores/actionStore.ts",
+      "client/src/stores/chatStore.ts"
+    ],
+    "router": "client/src/router/index.ts",
+    "bootstrap": "client/src/main.ts",
+    "chat_ui": "client/src/components/Chat/userChat.vue",
+    "profile_ui": "client/src/components/user/UserProfile.vue",
+    "feed_ui": "client/src/components/Home/Feed.vue",
+    "auth_ui": "client/src/components/Auth/GoogleloginButton.vue"
+  }
+}

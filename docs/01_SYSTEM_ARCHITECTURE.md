@@ -14,7 +14,7 @@ Express :3000
   +---- /api/users ----------> User controller -> PostgreSQL
   +---- /api/actions -------> Feed controller -> PostgreSQL + Redis
   +---- /api/chat -----------> Chat controller -> chat PostgreSQL + Redis
-  +---- /api/upload ---------> Multer -> client/public/uploads
+  +---- /api/upload ---------> Busboy -> MinIO
   |
   +---- / -------------------> Vite :5173
   |

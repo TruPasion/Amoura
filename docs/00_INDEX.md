@@ -29,7 +29,7 @@ from source analysis.
     proxied through Express
 -   Authentication: Google ID token verification + JWT stored in an
     `auth_token` cookie
--   Uploads: Multer writes into `client/public/uploads`
+-   Uploads: authenticated multipart requests stream directly into MinIO
 -   Development entry point: root `npm run dev`, which starts Vite and
     Express
 

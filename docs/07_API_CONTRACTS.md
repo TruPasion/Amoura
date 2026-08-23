@@ -14,7 +14,7 @@ Express mounts:
 
 Most application APIs use `authMiddleware`.
 
-Uploads are currently not protected by the global auth middleware.
+Uploads require the same auth middleware as the protected API routes.
 
 ## Authentication
 
@@ -151,10 +151,10 @@ Returns:
 }
 ```
 
-Multer stores files in:
+MinIO stores uploaded objects in the configured S3 bucket:
 
 ``` text
-client/public/uploads
+MinIO S3 bucket (`S3_BUCKET`)
 ```
 
 ------------------------------------------------------------------------

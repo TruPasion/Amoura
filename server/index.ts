@@ -1,40 +1,25 @@
 import express from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import authRoutes from "./routes/auth";
-import georoutes from "./routes/georoutes";
-import userRoutes from "./routes/userRoutes";
-import feedRoutes from "./routes/feedRoutes";
-import chatRoutes from "./routes/chat";
+import authRoutes from "./routes/auth.js";
+import georoutes from "./routes/georoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import feedRoutes from "./routes/feedRoutes.js";
+import chatRoutes from "./routes/chat.js";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-import { authMiddleware } from "./middlewares/authMiddleware";
-import multer from "multer";
+import { authMiddleware } from "./middlewares/authMiddleware.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
+import { uploadToMinIO } from "./controllers/uploadController.js";
+import { downloadFromMinIO } from "./controllers/downloadController.js";
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Configure multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage }); // Create the upload instance
-
 const app = express();
 const PORT = 3000;
-
-const uploadDir = join(__dirname, "../client/public/uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
 
 // Add this middleware to parse JSON bodies
 app.use(express.json());
@@ -51,26 +36,12 @@ app.use("/api/gis", authMiddleware, georoutes);
 app.use("/api/users", authMiddleware, userRoutes);
 app.use("/api/actions", authMiddleware, feedRoutes);
 app.use("/api/chat", authMiddleware, chatRoutes);
-// Serve static files from the uploads directory
 
-// Upload endpoint
-import type { Request, Response } from "express";
+// Upload endpoint using MinIO
+app.post("/api/upload", authMiddleware, uploadToMinIO);
 
-app.post(
-  "/api/upload",
-  upload.single("image"),
-  (req: express.Request, res: express.Response): void => {
-    if (!req.file) {
-      res.status(400).json({ message: "No file uploaded" });
-      return;
-    }
-
-    res.json({
-      message: "File uploaded successfully",
-      fileUrl: `/uploads/${req.file.filename}`,
-    });
-  }
-);
+// Download endpoint for serving files from MinIO
+app.get("/uploads/:path", downloadFromMinIO);
 
 // Handle 404 for API routes
 app.use("/api", (req, res) => {

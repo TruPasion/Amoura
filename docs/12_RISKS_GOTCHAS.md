@@ -135,12 +135,11 @@ The current implementation sorts arrays in place.
 
 Avoid introducing a behavior change while refactoring.
 
-### 17. Uploads live inside frontend public directory
+### 17. Uploads are stored in MinIO
 
-This is convenient but couples backend file storage to frontend
-deployment layout.
-
-Do not change it during the first migration.
+Uploads are now decoupled from the frontend deployment. The backend stores
+objects in the configured MinIO/S3 bucket and serves them through the
+existing `/uploads/*` endpoint.
 
 ------------------------------------------------------------------------
 

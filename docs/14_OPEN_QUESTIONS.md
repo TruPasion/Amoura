@@ -50,10 +50,11 @@ This means the migration needs a new behavioral acceptance suite.
 The backend writes uploaded images to:
 
 ``` text
-client/public/uploads
+MinIO (`S3_BUCKET`)
 ```
 
-Verify production deployment keeps this directory persistent.
+Verify production deployment provides persistent MinIO storage and valid
+S3 credentials/bucket configuration.
 
 ## 6. Cookie configuration
 

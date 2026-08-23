@@ -8,7 +8,7 @@ import {
   createUserProfile,
   uploadDelta,
   updateProfile,
-} from "../controllers/userController";
+} from "../controllers/userController.js";
 
 const router = express.Router();
 router.post("/", createUser as RequestHandler);

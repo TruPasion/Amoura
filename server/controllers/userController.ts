@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
-import { pool } from "../db/postGres";
+import { pool } from "../db/postGres.js";
 import * as fs from "fs";
 import * as path from "path";
+import minioClient from "../utils/minioClient.js";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import dotenv from "dotenv";
 
 // CREATE user
 export const createUser = async (req: Request, res: Response) => {
@@ -271,7 +275,7 @@ export const uploadDelta = async (req: Request, res: Response) => {
     for (const imageData of imagesToDelete) {
       // Delete from database
       const result = await client.query(
-        `DELETE FROM user_profile_pictures 
+        `DELETE FROM user_profile_pictures
          WHERE id = $1 AND user_id = $2
          RETURNING id`,
         [imageData.id, user_id]
@@ -280,27 +284,31 @@ export const uploadDelta = async (req: Request, res: Response) => {
       if (result.rows.length > 0) {
         deletedPhotoIds.push(imageData.id);
 
-        // Delete physical file if it's a local upload
+        // Delete object from MinIO if it's a MinIO upload
         if (
           imageData.image_url &&
           imageData.image_url.startsWith("/uploads/")
         ) {
           try {
-            const filePath = path.join(
-              process.cwd(),
-              "client",
-              "public",
-              imageData.image_url
-            );
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log("🗑️ Deleted file:", filePath);
+            // Extract the object key from the URL
+            let objectKey = imageData.image_url;
+            if (objectKey.startsWith("/uploads/")) {
+              objectKey = objectKey.substring("/uploads/".length);
             }
-          } catch (fileError) {
+
+            // Delete from MinIO
+            const deleteCommand = new DeleteObjectCommand({
+              Bucket: process.env.S3_BUCKET || "uploads",
+              Key: objectKey,
+            });
+
+            await minioClient.send(deleteCommand);
+            console.log("🗑️ Deleted MinIO object:", objectKey);
+          } catch (minioError) {
             console.error(
-              "Warning: Failed to delete file:",
+              "Warning: Failed to delete MinIO object:",
               imageData.image_url,
-              fileError
+              minioError
             );
             // Continue processing - don't fail the entire operation for file cleanup
           }

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { verifyGoogleToken } from "../utils/googleAuth";
-import { generateAccessToken, verifyAccessToken } from "../utils/jwt";
-import { pool } from "../db/postGres";
+import { verifyGoogleToken } from "../utils/googleAuth.js";
+import { generateAccessToken, verifyAccessToken } from "../utils/jwt.js";
+import { pool } from "../db/postGres.js";
 import { OAuth2Client } from "google-auth-library";
 
 export async function googleAuthHandler(req: Request, res: Response) {

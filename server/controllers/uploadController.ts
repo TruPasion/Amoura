@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { PassThrough } from "stream";
 import busboy from "busboy";
 import dotenv from "dotenv";
 import minioClient from "../utils/minioClient.js";
@@ -18,20 +17,25 @@ function sanitizeFilename(filename: string): string {
 }
 
 function createObjectKey(filename: string): string {
-  return `profiles/${randomUUID()}-${sanitizeFilename(filename)}`;
+  return `${randomUUID()}-${sanitizeFilename(filename)}`;
 }
 
 /**
- * Upload a multipart image directly to MinIO.
+ * Upload a multipart image to MinIO.
  *
- * The public API contract intentionally remains unchanged:
+ * Public API contract remains unchanged:
  *   POST /api/upload (multipart field: image)
  *   -> { message, fileUrl }
  *
- * Important: the MinIO upload is started inside Busboy's `file` event. Waiting
- * until Busboy's `close` event before starting the S3 upload would mean the
- * incoming stream has already been consumed and can result in empty/truncated
- * uploads.
+ * We intentionally buffer the bounded image before calling PutObjectCommand.
+ * AWS SDK v3's flexible-checksum middleware cannot safely calculate the
+ * x-amz-decoded-content-length header for an arbitrary PassThrough stream.
+ * Passing a Buffer + explicit ContentLength makes the request deterministic
+ * for MinIO and avoids the ERR_HTTP_INVALID_HEADER_VALUE error.
+ *
+ * MAX_UPLOAD_BYTES defaults to 10 MB, so this is bounded memory usage and is
+ * appropriate for profile images. Busboy still streams the HTTP request into
+ * memory rather than buffering the entire multipart request internally.
  */
 export const uploadToMinIO = (req: Request, res: Response) => {
   console.log("UPLOAD: controller entered");
@@ -41,13 +45,17 @@ export const uploadToMinIO = (req: Request, res: Response) => {
   let uploadPromise: Promise<unknown> | null = null;
   let objectKey = "";
   let responseSent = false;
+  let fileChunks: Buffer[] = [];
 
   const sendError = (status: number, message: string, error?: unknown) => {
     if (responseSent || res.headersSent) return;
     responseSent = true;
     if (error) console.error("UPLOAD:", message, error);
     else console.error("UPLOAD:", message);
-    res.status(status).json({ message, error: error instanceof Error ? error.message : undefined });
+    res.status(status).json({
+      message,
+      error: error instanceof Error ? error.message : undefined,
+    });
   };
 
   try {
@@ -77,40 +85,51 @@ export const uploadToMinIO = (req: Request, res: Response) => {
       }
 
       objectKey = createObjectKey(info.filename || "photo");
-
-      const uploadBody = new PassThrough();
+      fileChunks = [];
 
       file.on("data", (chunk: Buffer) => {
         bytesReceived += chunk.length;
+        fileChunks.push(chunk);
       });
 
       file.on("limit", () => {
-        console.warn("UPLOAD: image exceeded size limit", { maxBytes: MAX_UPLOAD_BYTES });
-        uploadBody.destroy(new Error("Upload exceeds the maximum allowed size"));
+        console.warn("UPLOAD: image exceeded size limit", {
+          maxBytes: MAX_UPLOAD_BYTES,
+        });
+        fileChunks = [];
         sendError(413, "Image is too large");
       });
 
       file.on("error", (error) => {
-        uploadBody.destroy(error);
+        fileChunks = [];
         sendError(500, "Incoming upload stream failed", error);
       });
 
-      console.log("UPLOAD: starting MinIO upload", {
-        bucket: BUCKET,
-        key: objectKey,
-      });
+      file.on("end", () => {
+        if (responseSent) return;
 
-      // Start consuming the request stream immediately. Do not defer this to
-      // Busboy's close event or the stream may already be exhausted.
-      uploadPromise = minioClient.send(
-        new PutObjectCommand({
-          Bucket: BUCKET,
-          Key: objectKey,
-          Body: uploadBody,
-          ContentType: info.mimeType,
-        }),
-      );
-      file.pipe(uploadBody);
+        const body = Buffer.concat(fileChunks);
+        fileChunks = [];
+
+        // The stream is now a known-size Buffer. Explicit ContentLength is
+        // important here: it prevents AWS SDK v3's checksum middleware from
+        // producing an undefined x-amz-decoded-content-length header.
+        console.log("UPLOAD: starting MinIO upload", {
+          bucket: BUCKET,
+          key: objectKey,
+          contentLength: body.length,
+        });
+
+        uploadPromise = minioClient.send(
+          new PutObjectCommand({
+            Bucket: BUCKET,
+            Key: objectKey,
+            Body: body,
+            ContentLength: body.length,
+            ContentType: info.mimeType,
+          }),
+        );
+      });
     });
 
     bb.on("filesLimit", () => {
@@ -122,7 +141,11 @@ export const uploadToMinIO = (req: Request, res: Response) => {
     });
 
     bb.on("close", async () => {
-      console.log("UPLOAD: busboy finish", { fileSeen, bytesReceived, objectKey });
+      console.log("UPLOAD: busboy finish", {
+        fileSeen,
+        bytesReceived,
+        objectKey,
+      });
 
       if (responseSent) return;
       if (!fileSeen) {
@@ -130,6 +153,8 @@ export const uploadToMinIO = (req: Request, res: Response) => {
         return;
       }
       if (!uploadPromise) {
+        // For a normal file, the `end` event fires before Busboy `close`.
+        // Keep this guard so malformed/aborted multipart requests fail cleanly.
         sendError(500, "Upload could not be started");
         return;
       }
@@ -140,7 +165,10 @@ export const uploadToMinIO = (req: Request, res: Response) => {
 
         responseSent = true;
         const fileUrl = `/uploads/${objectKey}`;
-        console.log("UPLOAD: MinIO upload completed", { fileUrl, bytesReceived });
+        console.log("UPLOAD: MinIO upload completed", {
+          fileUrl,
+          bytesReceived,
+        });
         res.json({
           message: "File uploaded successfully",
           fileUrl,
@@ -152,6 +180,7 @@ export const uploadToMinIO = (req: Request, res: Response) => {
 
     req.on("aborted", () => {
       console.warn("UPLOAD: client aborted request");
+      fileChunks = [];
       if (!responseSent) responseSent = true;
     });
 
